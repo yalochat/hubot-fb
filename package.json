@@ -25,6 +25,7 @@
   "license": "ISC",
   "dependencies": {
     "mime": "^1.3.4",
+    "node-botmetrics": "^1.0.0",
     "parent-require": "^1.0.0"
   },
   "peerDependencies": {
