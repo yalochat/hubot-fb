@@ -133,7 +133,10 @@ class FBMessenger extends Adapter
         if event.message.text?
             text = if @autoHear then @_autoHear event.message.text, envelope.room else event.message.text
             msg = new TextMessage envelope.user, text, event.message.mid
-            @receive msg
+            if event.message.quick_reply?.payload?
+              @_processPostbackQuickReply event, envelope
+            else
+              @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
     _autoHear: (text, chat_id) ->
@@ -154,6 +157,10 @@ class FBMessenger extends Adapter
             attachment: attachment
         }
         @robot.emit "fb_richMsg_#{attachment.type}", unique_envelope
+
+    _processPostbackQuickReply: (event,envelope) ->
+        envelope.payload =  event.message.quick_reply.payload
+        @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
