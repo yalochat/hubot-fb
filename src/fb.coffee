@@ -63,8 +63,8 @@ class FBMessenger extends Adapter
                 data.message.text = msg.substring(0,@msg_maxlength)
         else
             data.message.text = msg
-
-        @_sendAPI data
+        if data.message.text != ''
+          @_sendAPI data
 
     _sendRich: (user, richMsg) ->
         data = {
@@ -77,21 +77,40 @@ class FBMessenger extends Adapter
         self = @
 
         data = JSON.stringify(fbData)
+        typing = { "recipient":{"id":fbData.recipient.id},"sender_action":"typing_on"}
 
         @robot.http(@messageEndpoint)
             .query({access_token:self.token})
             .header('Content-Type', 'application/json')
-            .post(data) (error, response, body) ->
+            .post(JSON.stringify(typing)) (error, response, body) ->
 
-                botmetrics.trackOutgoing(fbData)
-                if error
-                    self.robot.logger.error 'Error sending message: #{error}'
-                    return
-                unless response.statusCode in [200, 201]
-                    self.robot.logger.error "Send request returned status " +
-                    "#{response.statusCode}. data='#{data}'"
-                    self.robot.logger.error body
-                    return
+
+        if fbData.message.text?
+          timeout = (fbData.message.text.split(" ").length / 5) * 1100
+        else if fbData.message.attachment?.payload?.text
+          timeout = (fbData.message.attachment.payload.text.split(" ").length / 5) * 1100
+        else
+          timeout = 5000
+
+        ((robot,data,messageEndpoint,timeout)->
+          setTimeout ( ->
+            robot.http(messageEndpoint)
+                .query({access_token:self.token})
+                .header('Content-Type', 'application/json')
+                .post(data) (error, response, body) ->
+
+                    botmetrics.trackOutgoing(fbData)
+                    if error
+                        self.robot.logger.error 'Error sending message: #{error}'
+                        return
+                    unless response.statusCode in [200, 201]
+                        self.robot.logger.error "Send request returned status " +
+                        "#{response.statusCode}. data='#{data}'"
+                        self.robot.logger.error body
+                        return
+          ), timeout
+        )(@robot,data,@messageEndpoint,timeout)
+
 
     reply: (envelope, strings...) ->
         @send envelope, strings
@@ -133,7 +152,10 @@ class FBMessenger extends Adapter
         if event.message.text?
             text = if @autoHear then @_autoHear event.message.text, envelope.room else event.message.text
             msg = new TextMessage envelope.user, text, event.message.mid
-            @receive msg
+            if event.message.quick_reply?.payload?
+              @_processPostbackQuickReply event, envelope
+            else
+              @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
     _autoHear: (text, chat_id) ->
@@ -154,6 +176,10 @@ class FBMessenger extends Adapter
             attachment: attachment
         }
         @robot.emit "fb_richMsg_#{attachment.type}", unique_envelope
+
+    _processPostbackQuickReply: (event,envelope) ->
+        envelope.payload =  event.message.quick_reply.payload
+        @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
