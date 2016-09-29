@@ -121,8 +121,11 @@ class FBMessenger extends Adapter
         user = @robot.brain.data.users[event.sender.id]
         unless user?
             self.robot.logger.debug "User doesn't exist, creating"
-            @_getUser event.sender.id, event.recipient.id, (user) ->
-                self._dispatch event, user
+            if event.message?.is_echo
+              self._dispatch event, 'admin'
+            else
+              @_getUser event.sender.id, event.recipient.id, (user) ->
+                  self._dispatch event, user
         else
             self.robot.logger.debug "User exists"
             self._dispatch event, user
@@ -155,7 +158,8 @@ class FBMessenger extends Adapter
             if event.message.quick_reply?.payload?
               @_processPostbackQuickReply event, envelope
             else
-              @receive msg
+              if (text.startsWith('/') && envelope.user == 'admin') || envelope.user != 'admin'
+                @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
     _autoHear: (text, chat_id) ->
