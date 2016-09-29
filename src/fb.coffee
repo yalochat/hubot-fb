@@ -122,10 +122,9 @@ class FBMessenger extends Adapter
         unless user?
             self.robot.logger.debug "User doesn't exist, creating"
             if event.message?.is_echo
-              self._dispatch event, 'admin'
-            else
-              @_getUser event.sender.id, event.recipient.id, (user) ->
-                  self._dispatch event, user
+              event.sender.id = event.recipient.id
+            @_getUser event.sender.id, event.recipient.id,event.message?.is_echo, (user) ->
+                self._dispatch event, user
         else
             self.robot.logger.debug "User exists"
             self._dispatch event, user
@@ -158,7 +157,7 @@ class FBMessenger extends Adapter
             if event.message.quick_reply?.payload?
               @_processPostbackQuickReply event, envelope
             else
-              if (text.startsWith('/') && envelope.user == 'admin') || envelope.user != 'admin'
+              if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
                 @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
@@ -197,7 +196,7 @@ class FBMessenger extends Adapter
         @robot.emit "fb_optin", envelope
         @robot.emit "fb_authentication", envelope
 
-    _getUser: (userId, page, callback) ->
+    _getUser: (userId, page,isAdmin, callback) ->
         self = @
 
         @robot.http(@apiURL + '/' + userId)
@@ -215,9 +214,11 @@ class FBMessenger extends Adapter
 
                 userData.name = userData.first_name
                 userData.room = page
+                userData.admin = isAdmin
 
                 user = new User userId, userData
-                self.robot.brain.data.users[userId] = user
+                if !isAdmin
+                  self.robot.brain.data.users[userId] = user
 
                 callback user
 
