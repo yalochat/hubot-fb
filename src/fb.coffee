@@ -156,6 +156,7 @@ class FBMessenger extends Adapter
             msg = new TextMessage envelope.user, text, event.message.mid
             if event.message.quick_reply?.payload?
               @_processPostbackQuickReply event, envelope
+              @receive msg
             else
               if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
                 @receive msg
