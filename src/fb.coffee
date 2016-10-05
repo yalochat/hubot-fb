@@ -122,7 +122,9 @@ class FBMessenger extends Adapter
         unless user?
             self.robot.logger.debug "User doesn't exist, creating"
             if event.message?.is_echo
+              temp = event.sender.id
               event.sender.id = event.recipient.id
+              event.recipient.id = temp
             @_getUser event.sender.id, event.recipient.id,event.message?.is_echo, (user) ->
                 self._dispatch event, user
         else
