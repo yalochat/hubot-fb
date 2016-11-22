@@ -5,11 +5,11 @@ catch
     {Robot,Adapter,TextMessage,User} = prequire 'hubot'
 
 Mime = require 'mime'
+Promise = require 'bluebird'
 crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
-botmetrics = require('node-botmetrics')(metricsToken).facebook;
-
+botmetrics = require('node-botmetrics')(metricsToken).facebook
 
 class FBMessenger extends Adapter
 
@@ -44,9 +44,15 @@ class FBMessenger extends Adapter
         @msg_maxlength = 320
 
     send: (envelope, strings...) ->
-        @_sendText envelope.user.id, msg for msg in strings
-        if envelope.fb?.richMsg?
-            @_sendRich envelope.user.id, envelope.fb.richMsg
+        self = @
+        Promise.each strings, (msg) ->
+            if typeof msg is 'string'
+                self._sendText(envelope.user.id, msg)
+            else
+                self._sendRich(envelope.user.id, msg)
+
+    reply: (envelope, strings...) ->
+        @send envelope, strings
 
     _sendText: (user, msg) ->
         data = {
@@ -57,44 +63,71 @@ class FBMessenger extends Adapter
         if @sendImages
             mime = Mime.lookup(msg)
 
-            if mime is "image/jpeg" or mime is "image/png" or mime is "image/gif"
-                data.message.attachment = { type: "image", payload: { url: msg }}
+            if mime is 'image/jpeg' or mime is 'image/png' or mime is 'image/gif'
+                data.message.attachment = { type: 'image', payload: { url: msg }}
             else
-                data.message.text = msg.substring(0,@msg_maxlength)
+                data.message.text = msg.substring(0, @msg_maxlength)
         else
             data.message.text = msg
-
-        @_sendAPI data
+        
+        @_sendMessage data
 
     _sendRich: (user, richMsg) ->
         data = {
             recipient: {id: user},
             message: richMsg
         }
-        @_sendAPI data
+        @_sendMessage data
 
-    _sendAPI: (fbData) ->
+    _calculateReadingTime: (text) ->
+        (text.split(' ').length / 5) * 1100
+
+    _sendMessage: (data) ->
         self = @
 
-        data = JSON.stringify(fbData)
+        # Make payload used to send typing event
+        typing =
+            recipient:
+                id: data.recipient.id
+            sender_action: 'typing_on'
+        
+        # Send event typing
+        @_sendAPI(typing)
+            .then( ->
+                # Calculate timeout for send message
+                timeout = 0
+                if data.message.text?
+                    timeout = self._calculateReadingTime(data.message.text)
+                else if data.message.attachment?.payload?.text
+                    timeout = self._calculateReadingTime(data.message.attachment.payload.text)
 
-        @robot.http(@messageEndpoint)
-            .query({access_token:self.token})
-            .header('Content-Type', 'application/json')
-            .post(data) (error, response, body) ->
+                # Send message applying timeout in seconds
+                return self._sendAPI(data, timeout)
+            )
 
-                botmetrics.trackOutgoing(fbData)
-                if error
-                    self.robot.logger.error 'Error sending message: #{error}'
-                    return
-                unless response.statusCode in [200, 201]
-                    self.robot.logger.error "Send request returned status " +
-                    "#{response.statusCode}. data='#{data}'"
-                    self.robot.logger.error body
-                    return
+    _sendAPI: (data, timeout = 0) ->
+        self = @
+        fbData = JSON.stringify data
 
-    reply: (envelope, strings...) ->
-        @send envelope, strings
+        request = new Promise((resolve, reject) ->
+            self.robot.http(self.messageEndpoint)
+                .query(access_token: self.token)
+                .header('Content-Type', 'application/json')
+                .post(fbData) (error, response, body) ->
+                    if error
+                        self.robot.logger.error "Error sending message: #{err}"
+                        return reject(error)
+
+                    if response.statusCode in [200, 201]
+                        self.robot.logger.info "Send request returned status #{response.statusCode}, data #{JSON.stringify(data)}"
+                        self.robot.logger.info response.body
+
+                    # If error doesn't exists, then track message
+                    botmetrics.trackOutgoing(data)    
+                    resolve({ statusCode: response.statusCode, body })
+        )
+
+        Promise.delay(timeout, request)
 
     _receiveAPI: (event) ->
         self = @
@@ -102,7 +135,9 @@ class FBMessenger extends Adapter
         user = @robot.brain.data.users[event.sender.id]
         unless user?
             self.robot.logger.debug "User doesn't exist, creating"
-            @_getUser event.sender.id, event.recipient.id, (user) ->
+            if event.message?.is_echo
+              event.sender.id = event.recipient.id
+            @_getUser event.sender.id, event.recipient.id,event.message?.is_echo, (user) ->
                 self._dispatch event, user
         else
             self.robot.logger.debug "User exists"
@@ -133,7 +168,12 @@ class FBMessenger extends Adapter
         if event.message.text?
             text = if @autoHear then @_autoHear event.message.text, envelope.room else event.message.text
             msg = new TextMessage envelope.user, text, event.message.mid
-            @receive msg
+            if event.message.quick_reply?.payload?
+              @_processPostbackQuickReply event, envelope
+              @receive msg
+            else
+              if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
+                @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
     _autoHear: (text, chat_id) ->
@@ -155,6 +195,10 @@ class FBMessenger extends Adapter
         }
         @robot.emit "fb_richMsg_#{attachment.type}", unique_envelope
 
+    _processPostbackQuickReply: (event,envelope) ->
+        envelope.payload =  event.message.quick_reply.payload
+        @robot.emit "fb_postback", envelope
+
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
         @robot.emit "fb_postback", envelope
@@ -167,7 +211,7 @@ class FBMessenger extends Adapter
         @robot.emit "fb_optin", envelope
         @robot.emit "fb_authentication", envelope
 
-    _getUser: (userId, page, callback) ->
+    _getUser: (userId, page,isAdmin, callback) ->
         self = @
 
         @robot.http(@apiURL + '/' + userId)
@@ -185,9 +229,11 @@ class FBMessenger extends Adapter
 
                 userData.name = userData.first_name
                 userData.room = page
+                userData.admin = isAdmin
 
                 user = new User userId, userData
-                self.robot.brain.data.users[userId] = user
+                if !isAdmin
+                  self.robot.brain.data.users[userId] = user
 
                 callback user
 
