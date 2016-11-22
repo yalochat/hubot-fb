@@ -5,11 +5,11 @@ catch
     {Robot,Adapter,TextMessage,User} = prequire 'hubot'
 
 Mime = require 'mime'
+Promise = require 'bluebird'
 crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
-botmetrics = require('node-botmetrics')(metricsToken).facebook;
-
+botmetrics = require('node-botmetrics')(metricsToken).facebook
 
 class FBMessenger extends Adapter
 
@@ -44,9 +44,15 @@ class FBMessenger extends Adapter
         @msg_maxlength = 320
 
     send: (envelope, strings...) ->
-        @_sendText envelope.user.id, msg for msg in strings
-        if envelope.fb?.richMsg?
-            @_sendRich envelope.user.id, envelope.fb.richMsg
+        self = @
+        Promise.each strings, (msg) ->
+            if typeof msg is 'string'
+                self._sendText(envelope.user.id, msg)
+            else
+                self._sendRich(envelope.user.id, msg)
+
+    reply: (envelope, strings...) ->
+        @send envelope, strings
 
     _sendText: (user, msg) ->
         data = {
@@ -57,63 +63,71 @@ class FBMessenger extends Adapter
         if @sendImages
             mime = Mime.lookup(msg)
 
-            if mime is "image/jpeg" or mime is "image/png" or mime is "image/gif"
-                data.message.attachment = { type: "image", payload: { url: msg }}
+            if mime is 'image/jpeg' or mime is 'image/png' or mime is 'image/gif'
+                data.message.attachment = { type: 'image', payload: { url: msg }}
             else
-                data.message.text = msg.substring(0,@msg_maxlength)
+                data.message.text = msg.substring(0, @msg_maxlength)
         else
             data.message.text = msg
-        if data.message.text != ''
-          @_sendAPI data
+        
+        @_sendMessage data
 
     _sendRich: (user, richMsg) ->
         data = {
             recipient: {id: user},
             message: richMsg
         }
-        @_sendAPI data
+        @_sendMessage data
 
-    _sendAPI: (fbData) ->
+    _calculateReadingTime: (text) ->
+        (text.split(' ').length / 5) * 1100
+
+    _sendMessage: (data) ->
         self = @
 
-        data = JSON.stringify(fbData)
-        typing = { "recipient":{"id":fbData.recipient.id},"sender_action":"typing_on"}
+        # Make payload used to send typing event
+        typing =
+            recipient:
+                id: data.recipient.id
+            sender_action: 'typing_on'
+        
+        # Send event typing
+        @_sendAPI(typing)
+            .then( ->
+                # Calculate timeout for send message
+                timeout = 0
+                if data.message.text?
+                    timeout = self._calculateReadingTime(data.message.text)
+                else if data.message.attachment?.payload?.text
+                    timeout = self._calculateReadingTime(data.message.attachment.payload.text)
 
-        @robot.http(@messageEndpoint)
-            .query({access_token:self.token})
-            .header('Content-Type', 'application/json')
-            .post(JSON.stringify(typing)) (error, response, body) ->
+                # Send message applying timeout in seconds
+                return self._sendAPI(data, timeout)
+            )
 
+    _sendAPI: (data, timeout = 0) ->
+        self = @
+        fbData = JSON.stringify data
 
-        if fbData.message.text?
-          timeout = (fbData.message.text.split(" ").length / 5) * 1100
-        else if fbData.message.attachment?.payload?.text
-          timeout = (fbData.message.attachment.payload.text.split(" ").length / 5) * 1100
-        else
-          timeout = 5000
-
-        ((robot,data,messageEndpoint,timeout)->
-          setTimeout ( ->
-            robot.http(messageEndpoint)
-                .query({access_token:self.token})
+        request = new Promise((resolve, reject) ->
+            self.robot.http(self.messageEndpoint)
+                .query(access_token: self.token)
                 .header('Content-Type', 'application/json')
-                .post(data) (error, response, body) ->
-
-                    botmetrics.trackOutgoing(fbData)
+                .post(fbData) (error, response, body) ->
                     if error
-                        self.robot.logger.error 'Error sending message: #{error}'
-                        return
-                    unless response.statusCode in [200, 201]
-                        self.robot.logger.error "Send request returned status " +
-                        "#{response.statusCode}. data='#{data}'"
-                        self.robot.logger.error body
-                        return
-          ), timeout
-        )(@robot,data,@messageEndpoint,timeout)
+                        self.robot.logger.error "Error sending message: #{err}"
+                        return reject(error)
 
+                    if response.statusCode in [200, 201]
+                        self.robot.logger.info "Send request returned status #{response.statusCode}, data #{JSON.stringify(data)}"
+                        self.robot.logger.info response.body
 
-    reply: (envelope, strings...) ->
-        @send envelope, strings
+                    # If error doesn't exists, then track message
+                    botmetrics.trackOutgoing(data)    
+                    resolve({ statusCode: response.statusCode, body })
+        )
+
+        Promise.delay(timeout, request)
 
     _receiveAPI: (event) ->
         self = @
