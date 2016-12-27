@@ -259,7 +259,10 @@ class FBMessenger extends Adapter
         @robot.http(@subscriptionEndpoint)
             .query({access_token:self.token})
             .post() (error, response, body) ->
-                self.robot.logger.info "subscribed app to page: " + body
+                if response.statusCode != 200
+                  self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
+                  process.exit 0
+                self.robot.logger.info "subscribed app to page: " + body  + response.statusCode
 
         @robot.router.get [@routeURL], (req, res) ->
             if req.param('hub.mode') == 'subscribe' and req.param('hub.verify_token') == self.vtoken
@@ -287,6 +290,9 @@ class FBMessenger extends Adapter
                     access_token: self.app_access_token
                     )
                 .post() (error2, response2, body2) ->
+                    if response2.statusCode != 200
+                      self.robot.logger.error "Response code -> " + response2.statusCode + " Response message -> " + body2
+                      process.exit 0
                     self.robot.logger.info "FB webhook set/updated: " + body2
 
         @robot.logger.info "FB-adapter initialized"
