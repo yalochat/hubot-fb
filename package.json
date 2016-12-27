@@ -1,5 +1,5 @@
 {
-  "name": "@engyalo/hubot-fb",
+  "name": "hubot-fb",
   "version": "3.3.3",
   "description": "A Hubot adapter for Facebook Messenger",
   "keywords": [
