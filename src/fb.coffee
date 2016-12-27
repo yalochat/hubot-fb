@@ -69,7 +69,7 @@ class FBMessenger extends Adapter
                 data.message.text = msg.substring(0, @msg_maxlength)
         else
             data.message.text = msg
-        
+
         @_sendMessage data
 
     _sendRich: (user, richMsg) ->
@@ -90,7 +90,7 @@ class FBMessenger extends Adapter
             recipient:
                 id: data.recipient.id
             sender_action: 'typing_on'
-        
+
         # Send event typing
         @_sendAPI(typing)
             .then( ->
@@ -123,7 +123,7 @@ class FBMessenger extends Adapter
                         self.robot.logger.info response.body
 
                     # If error doesn't exists, then track message
-                    botmetrics.trackOutgoing(data)    
+                    botmetrics.trackOutgoing(data)
                     resolve({ statusCode: response.statusCode, body })
         )
 
@@ -170,7 +170,7 @@ class FBMessenger extends Adapter
             msg = new TextMessage envelope.user, text, event.message.mid
             if event.message.quick_reply?.payload?
               @_processPostbackQuickReply event, envelope
-              @receive msg
+              #@receive msg
             else
               if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
                 @receive msg
