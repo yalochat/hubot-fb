@@ -11,6 +11,7 @@ inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook
 
+
 class FBMessenger extends Adapter
 
     constructor: ->
@@ -25,6 +26,7 @@ class FBMessenger extends Adapter
 
         @routeURL   = process.env['FB_ROUTE_URL'] or '/hubot/fb'
         @webhookURL = process.env['FB_WEBHOOK_BASE'] + @routeURL
+        @setWebHook = @toBool(process.env['FB_SET_WEBHOOK'] or false)
 
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
@@ -237,6 +239,25 @@ class FBMessenger extends Adapter
 
                 callback user
 
+    toBool: (string) ->
+        areTrue = [
+            'yes',
+            'true',
+            true,
+            'y',
+            1,
+            '1'
+        ]
+
+        if(typeof string is 'string')
+            string = string.toLowerCase()
+
+        if(areTrue.indexOf(string)  > -1)
+            return true
+
+        return false
+
+
 
     run: ->
         self = @
@@ -278,16 +299,19 @@ class FBMessenger extends Adapter
         @robot.http(@appAccessTokenEndpoint)
             .get() (error, response, body) ->
                 self.app_access_token = body.split("=").pop()
-                self.robot.http(self.setWebhookEndpoint)
-                .query(
-                    object: 'page',
-                    callback_url: self.webhookURL
-                    fields: 'messaging_optins, messages, message_deliveries, messaging_postbacks'
-                    verify_token: self.vtoken
-                    access_token: self.app_access_token
-                    )
-                .post() (error2, response2, body2) ->
-                    self.robot.logger.info "FB webhook set/updated: " + body2
+
+                # Verify if the client want to set the webhook
+                if self.setWebHook
+                    self.robot.http(self.setWebhookEndpoint)
+                    .query(
+                        object: 'page',
+                        callback_url: self.webhookURL
+                        fields: 'messaging_optins, messages, message_deliveries, messaging_postbacks'
+                        verify_token: self.vtoken
+                        access_token: self.app_access_token
+                        )
+                    .post() (error2, response2, body2) ->
+                        self.robot.logger.info "FB webhook set/updated: " + body2
 
         @robot.logger.info "FB-adapter initialized"
         @emit "connected"
