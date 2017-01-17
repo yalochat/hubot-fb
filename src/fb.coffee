@@ -154,6 +154,8 @@ class FBMessenger extends Adapter
             @_processMessage event, envelope
         else if event.postback?
             @_processPostback event, envelope
+        else if event.referral?
+            @_processReferral event, envelope
         else if event.delivery?
             @_processDelivery event, envelope
         else if event.optin?
@@ -201,7 +203,15 @@ class FBMessenger extends Adapter
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
-        @robot.emit "fb_postback", envelope
+        envelope.referral = event.postback.referral?.ref
+        if envelope.referral
+            @robot.emit "fb_referral", envelope
+        else
+            @robot.emit "fb_postback", envelope
+
+    _processReferral: (event, envelope) ->
+        envelope.referral = event.referral.ref
+        @robot.emit "fb_referral", envelope
 
     _processDelivery: (event, envelope) ->
         @robot.emit "fb_delivery", envelope

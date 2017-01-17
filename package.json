@@ -1,38 +1,38 @@
 {
-  "name": "hubot-fb",
-  "version": "3.3.2",
-  "description": "A Hubot adapter for Facebook Messenger",
-  "keywords": [
-    "facebook messenger",
-    "hubot",
-    "hubot-scripts",
-    "hubot-adapters"
-  ],
-  "homepage": "https://github.com/chen-ye/hubot-fb",
-  "bugs": {
-    "url": "https://github.com/chen-ye/hubot-fb/issues"
-  },
-  "author": "Chen Ye <cye@brown.edu> (cye.me)",
-  "contributors": [],
-  "main": "src/fb.coffee",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/chen-ye/hubot-fb.git"
-  },
-  "license": "ISC",
-  "dependencies": {
-    "bluebird": "^3.4.6",
-    "mime": "^1.3.4",
-    "node-botmetrics": "^1.0.0",
-    "parent-require": "^1.0.0"
-  },
-  "peerDependencies": {
-    "hubot": ">=2.0"
-  },
-  "devDependencies": {
-    "coffee-script": ">=1.2.0"
-  }
+    "name": "hubot-fb",
+    "version": "3.4.0",
+    "description": "A Hubot adapter for Facebook Messenger",
+    "keywords": [
+        "facebook messenger",
+        "hubot",
+        "hubot-scripts",
+        "hubot-adapters"
+    ],
+    "homepage": "https://github.com/chen-ye/hubot-fb",
+    "bugs": {
+        "url": "https://github.com/chen-ye/hubot-fb/issues"
+    },
+    "author": "Chen Ye <cye@brown.edu> (cye.me)",
+    "contributors": [],
+    "main": "src/fb.coffee",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/chen-ye/hubot-fb.git"
+    },
+    "license": "ISC",
+    "dependencies": {
+        "bluebird": "^3.4.6",
+        "mime": "^1.3.4",
+        "node-botmetrics": "^1.0.0",
+        "parent-require": "^1.0.0"
+    },
+    "peerDependencies": {
+        "hubot": ">=2.0"
+    },
+    "devDependencies": {
+        "coffee-script": ">=1.2.0"
+    }
 }
