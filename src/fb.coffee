@@ -199,11 +199,13 @@ class FBMessenger extends Adapter
 
     _processPostbackQuickReply: (event,envelope) ->
         envelope.payload =  event.message.quick_reply.payload
+        sendAnalytics({_eventName:envelope.payload},envelope.user.id)
         @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
         envelope.referral = event.postback.referral?.ref
+        sendAnalytics({_eventName:envelope.payload},envelope.user.id)
         if envelope.referral
             @robot.emit "fb_referral", envelope
         else
@@ -247,6 +249,25 @@ class FBMessenger extends Adapter
 
                 callback user
 
+    sendAnalytics: (event,userId) ->
+            self = @
+
+            form = {
+                event: 'CUSTOM_APP_EVENTS',
+                custom_events: JSON.stringify(event),
+                advertiser_tracking_enabled: 0,
+                application_tracking_enabled: 0,
+                extinfo: JSON.stringify(['mb1']),
+                page_id: @page_id,
+                page_scoped_user_id: userId
+            }
+            @robot.http(@analyticsEndpoint)
+                .query(form)
+                .post() (error, response, body) ->
+                    console.log '******',response.statusCode
+                    if response.statusCode != 200
+                    self.robot.logger.error "Response code -> " + response.statusCode + "Event Response message -> " + body
+                    self.robot.logger.info "Event Sent: " + JSON.stringify(event)  + response.statusCode
 
     run: ->
         self = @
