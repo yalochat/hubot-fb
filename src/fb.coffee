@@ -28,6 +28,10 @@ class FBMessenger extends Adapter
         @webhookURL = process.env['FB_WEBHOOK_BASE'] + @routeURL
         @setWebHook = @toBool(process.env['FB_SET_WEBHOOK'] or false)
 
+        @slackWebhook = process.env['SLACK_WEBHOOK'] or null
+        @httpErrors = 0
+        @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
+
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
             @sendImages = true
@@ -107,6 +111,23 @@ class FBMessenger extends Adapter
                 return self._sendAPI(data, timeout)
             )
 
+    _sendToSlack: (text) ->
+        self = @
+        if (self.slackWebhook)
+            if (self.httpErrors >= self.httpErrorsMax)
+                data = JSON.stringify({text:"#{text} \n *bot: #{self.robot.name}* \n @eng"})
+                self.robot.http(@slackWebhook)
+                    .header('Content-Type', 'application/json')
+                    .post(data) (err, response, body) ->
+                        if (err)
+                            self.robot.logger.error "Error trying to send notification to slack - #{err}"
+                        self.httpErrors = 0
+            else
+                self.httpErrors++
+
+        else
+            @robot.logger.error "Trying to send notification to slack but I don't have a slack webhook"
+
     _sendAPI: (data, timeout = 0) ->
         self = @
         fbData = JSON.stringify data
@@ -118,11 +139,19 @@ class FBMessenger extends Adapter
                 .post(fbData) (error, response, body) ->
                     if error
                         self.robot.logger.error "Error sending message: #{err}"
+                        self._sendToSlack "Error sending message to facebook webhook\n #{err}"
                         return reject(error)
 
                     if response.statusCode in [200, 201]
                         self.robot.logger.info "Send request returned status #{response.statusCode}, data #{JSON.stringify(data)}"
                         self.robot.logger.info response.body
+                    else
+                        try
+                            errMsg = JSON.parse body
+                            self.robot.logger.error "Facebook webhook responded with an error #{errMsg.error.message}"
+                            self._sendToSlack "Facebook webhook responded with an error\n #{errMsg.error.message}"
+                        catch e
+                            self.robot.logger.error "Error parsing JSON #{body}"
 
                     # If error doesn't exists, then track message
                     botmetrics.trackOutgoing(data)
@@ -220,10 +249,13 @@ class FBMessenger extends Adapter
             .query({fields:"first_name,last_name,profile_pic",access_token:self.token})
             .get() (error, response, body) ->
                 if error
-                    self.robot.logger.error 'Error getting user profile: #{error}'
+                    self.robot.logger.error "Error getting user profile: #{error}"
+                    self._sendToSlack "Error getting user profile: #{error}"
                     return
                 unless response.statusCode is 200
                     self.robot.logger.error "Get user profile request returned status " +
+                    "#{response.statusCode}. data='#{body}'"
+                    self._sendToSlack "Error trying to get FB user profile; request returned status " +
                     "#{response.statusCode}. data='#{body}'"
                     self.robot.logger.error body
                     return
