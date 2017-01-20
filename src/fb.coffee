@@ -10,7 +10,7 @@ crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook
-Analytics = require 'fb-messenger-events'
+Analytics = require '@engyalo/fb-messenger-events'
 
 class FBMessenger extends Adapter
 
@@ -253,25 +253,6 @@ class FBMessenger extends Adapter
                   self.robot.brain.data.users[userId] = user
 
                 callback user
-
-    sendAnalytics: (event,userId) ->
-            self = @
-
-            form = {
-                event: 'CUSTOM_APP_EVENTS',
-                custom_events: JSON.stringify(event),
-                advertiser_tracking_enabled: 0,
-                application_tracking_enabled: 0,
-                extinfo: JSON.stringify(['mb1']),
-                page_id: @page_id,
-                page_scoped_user_id: userId
-            }
-            @robot.http(@analyticsEndpoint)
-                .query(form)
-                .post() (error, response, body) ->
-                    if response.statusCode != 200
-                    self.robot.logger.error "Response code -> " + response.statusCode + "Event Response message -> " + body
-                    self.robot.logger.info "Event Sent: " + JSON.stringify(event)  + response.statusCode
 
     run: ->
         self = @
