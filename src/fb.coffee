@@ -10,6 +10,7 @@ crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook
+Analytics = require 'fb-messenger-events'
 
 class FBMessenger extends Adapter
 
@@ -26,6 +27,8 @@ class FBMessenger extends Adapter
         @routeURL   = process.env['FB_ROUTE_URL'] or '/hubot/fb'
         @webhookURL = process.env['FB_WEBHOOK_BASE'] + @routeURL
 
+
+        @botId = process.env['BOT_ID']
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
             @sendImages = true
@@ -42,6 +45,8 @@ class FBMessenger extends Adapter
         @setWebhookEndpoint = @pageURL + '/subscriptions'
 
         @msg_maxlength = 320
+
+        Analytics.init @botId, @app_id, @page_id 
 
     send: (envelope, strings...) ->
         self = @
@@ -199,13 +204,13 @@ class FBMessenger extends Adapter
 
     _processPostbackQuickReply: (event,envelope) ->
         envelope.payload =  event.message.quick_reply.payload
-        sendAnalytics({_eventName:envelope.payload},envelope.user.id)
+        Analytics.track(envelope.user.id,envelope.payload)
         @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
         envelope.referral = event.postback.referral?.ref
-        sendAnalytics({_eventName:envelope.payload},envelope.user.id)
+        Analytics.track(envelope.user.id,envelope.payload)
         if envelope.referral
             @robot.emit "fb_referral", envelope
         else
@@ -264,7 +269,6 @@ class FBMessenger extends Adapter
             @robot.http(@analyticsEndpoint)
                 .query(form)
                 .post() (error, response, body) ->
-                    console.log '******',response.statusCode
                     if response.statusCode != 200
                     self.robot.logger.error "Response code -> " + response.statusCode + "Event Response message -> " + body
                     self.robot.logger.info "Event Sent: " + JSON.stringify(event)  + response.statusCode
