@@ -9,6 +9,7 @@ crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook;
+Analytics = require '@engyalo/fb-messenger-events'
 
 
 class FBMessenger extends Adapter
@@ -26,6 +27,8 @@ class FBMessenger extends Adapter
         @routeURL   = process.env['FB_ROUTE_URL'] or '/hubot/fb'
         @webhookURL = process.env['FB_WEBHOOK_BASE'] + @routeURL
 
+
+        @botId = process.env['BOT_ID']
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
             @sendImages = true
@@ -42,6 +45,8 @@ class FBMessenger extends Adapter
         @setWebhookEndpoint = @pageURL + '/subscriptions'
 
         @msg_maxlength = 320
+
+        Analytics.init @botId, @app_id, @page_id
 
     send: (envelope, strings...) ->
         @_sendText envelope.user.id, msg for msg in strings
@@ -179,10 +184,12 @@ class FBMessenger extends Adapter
 
     _processPostbackQuickReply: (event,envelope) ->
         envelope.payload =  event.message.quick_reply.payload
+        Analytics.track(envelope.user.id,envelope.payload)
         @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
+        Analytics.track(envelope.user.id,envelope.payload)
         @robot.emit "fb_postback", envelope
 
     _processDelivery: (event, envelope) ->
