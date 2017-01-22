@@ -34,6 +34,7 @@ class FBMessenger extends Adapter
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
         @hooksHost = proces.env['HOOKS_HOST'] or null
+        @hooksUrl = "http://#{hooksHost}"
         @botId = process.env['BOT_ID'] or null
 
         _sendImages = process.env['FB_SEND_IMAGES']
@@ -138,11 +139,20 @@ class FBMessenger extends Adapter
         self = @
         fbData = JSON.stringify data
 
-        request = new Promise((resolve, reject) ->
-            self.robot.http(self.messageEndpoint)
-                .query(access_token: self.token)
-                .header('Content-Type', 'application/json')
-                .post(fbData) (error, response, body) ->
+        url = "#{hooksUrl}/bots/#{botId}"
+        unlesss @hooksUrl
+            url = @messageEndpoint
+            sendToken = true
+
+        promise = new Promise((resolve, reject) ->
+            request = self.robot
+                        .http(url)
+                        .header('Content-Type', 'application/json')
+
+            if sendToken
+                request = request.query(access_token: self.token)
+
+            request.post(fbData) (error, response, body) ->
                     if error
                         self.robot.logger.error "Error sending message: #{err}"
                         self._sendToSlack "Error sending message to facebook webhook\n #{err}"
@@ -164,7 +174,7 @@ class FBMessenger extends Adapter
                     resolve({ statusCode: response.statusCode, body })
         )
 
-        Promise.delay(timeout, request)
+        Promise.delay(timeout, promise)
 
     _receiveAPI: (event) ->
         self = @
@@ -312,8 +322,16 @@ class FBMessenger extends Adapter
     run: ->
         self = @
 
-        unless @token
-            @emit 'error', new Error 'The environment variable "FB_PAGE_TOKEN" is required. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
+        if @setWebHook
+            unless @token
+                @emit 'error', new Error 'The environment variable "FB_PAGE_TOKEN" is required when you set the variable "FB_SET_WEBHOOK equals true". See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
+
+            unless @webhookURL
+                @emit 'error', new Error 'The environment variable "FB_WEBHOOK_BASE" is required when you set the variable "FB_SET_WEBHOOK equals true. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
+        else
+            unless @hooksHost
+                @emit 'error', new Error 'The environment variable "HOOKS_HOST" is required'
+
 
         unless @page_id
             @emit 'error', new Error 'The environment variable "FB_PAGE_ID" is required. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
@@ -324,22 +342,8 @@ class FBMessenger extends Adapter
         unless @app_secret
             @emit 'error', new Error 'The environment variable "FB_APP_SECRET" is required. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
 
-        unless process.env['FB_WEBHOOK_BASE']
-            @emit 'error', new Error 'The environment variable "FB_WEBHOOK_BASE" is required. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
-
-        unless @hooksHost
-            @emit 'error', new Error 'The environment variable "HOOKS_HOST" is required'
-
         unless @botId
             @emit 'error', new Error 'The environment variable "BOT_ID" is required'
-
-        @robot.http(@subscriptionEndpoint)
-            .query({access_token:self.token})
-            .post() (error, response, body) ->
-                if response.statusCode != 200
-                  self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
-                  process.exit 0
-                self.robot.logger.info "subscribed app to page: " + body  + response.statusCode
 
         @robot.router.get [@routeURL], (req, res) ->
             if req.param('hub.mode') == 'subscribe' and req.param('hub.verify_token') == self.vtoken
@@ -355,11 +359,19 @@ class FBMessenger extends Adapter
             self._receiveAPI event for event in messaging_events
             res.send 200
 
-        @robot.http(@appAccessTokenEndpoint)
-            .get() (error, response, body) ->
-                self.app_access_token = body.split("=").pop()
-                # Verify if the client want to set the webhook
-                if self.setWebHook
+        # Suscribe to app and update FB webhook
+        if @setWebHook
+            @robot.http(@subscriptionEndpoint)
+                .query({access_token:self.token})
+                .post() (error, response, body) ->
+                    if response.statusCode != 200
+                    self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
+                    process.exit 0
+                    self.robot.logger.info "subscribed app to page: " + body  + response.statusCode
+
+            @robot.http(@appAccessTokenEndpoint)
+                .get() (error, response, body) ->
+                    self.app_access_token = body.split("=").pop()
                     self.robot.http(self.setWebhookEndpoint)
                     .query(
                         object: 'page',
