@@ -10,6 +10,7 @@ crypto = require 'crypto'
 inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook
+Analytics = require '@engyalo/fb-messenger-events'
 
 
 class FBMessenger extends Adapter
@@ -32,6 +33,8 @@ class FBMessenger extends Adapter
         @httpErrors = 0
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
+
+        @botId = process.env['BOT_ID']
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
             @sendImages = true
@@ -48,6 +51,8 @@ class FBMessenger extends Adapter
         @setWebhookEndpoint = @pageURL + '/subscriptions'
 
         @msg_maxlength = 320
+
+        Analytics.init @botId, @app_id, @page_id 
 
     send: (envelope, strings...) ->
         self = @
@@ -185,6 +190,8 @@ class FBMessenger extends Adapter
             @_processMessage event, envelope
         else if event.postback?
             @_processPostback event, envelope
+        else if event.referral?
+            @_processReferral event, envelope
         else if event.delivery?
             @_processDelivery event, envelope
         else if event.optin?
@@ -228,11 +235,21 @@ class FBMessenger extends Adapter
 
     _processPostbackQuickReply: (event,envelope) ->
         envelope.payload =  event.message.quick_reply.payload
+        Analytics.track(envelope.user.id,envelope.payload)
         @robot.emit "fb_postback", envelope
 
     _processPostback: (event, envelope) ->
         envelope.payload = event.postback.payload
-        @robot.emit "fb_postback", envelope
+        envelope.referral = event.postback.referral?.ref
+        Analytics.track(envelope.user.id,envelope.payload)
+        if envelope.referral
+            @robot.emit "fb_referral", envelope
+        else
+            @robot.emit "fb_postback", envelope
+
+    _processReferral: (event, envelope) ->
+        envelope.referral = event.referral.ref
+        @robot.emit "fb_referral", envelope
 
     _processDelivery: (event, envelope) ->
         @robot.emit "fb_delivery", envelope
@@ -291,7 +308,6 @@ class FBMessenger extends Adapter
         return false
 
 
-
     run: ->
         self = @
 
@@ -313,7 +329,10 @@ class FBMessenger extends Adapter
         @robot.http(@subscriptionEndpoint)
             .query({access_token:self.token})
             .post() (error, response, body) ->
-                self.robot.logger.info "subscribed app to page: " + body
+                if response.statusCode != 200
+                  self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
+                  process.exit 0
+                self.robot.logger.info "subscribed app to page: " + body  + response.statusCode
 
         @robot.router.get [@routeURL], (req, res) ->
             if req.param('hub.mode') == 'subscribe' and req.param('hub.verify_token') == self.vtoken
@@ -332,7 +351,6 @@ class FBMessenger extends Adapter
         @robot.http(@appAccessTokenEndpoint)
             .get() (error, response, body) ->
                 self.app_access_token = body.split("=").pop()
-
                 # Verify if the client want to set the webhook
                 if self.setWebHook
                     self.robot.http(self.setWebhookEndpoint)
