@@ -140,19 +140,17 @@ class FBMessenger extends Adapter
         fbData = JSON.stringify data
 
         url = "#{@hooksUrl}/bots/#{@botId}"
+        query = {}
         unless @hooksUrl
             url = @messageEndpoint
-            sendToken = true
+            query = access_token: self.token
 
-        promise = new Promise((resolve, reject) ->
-            request = self.robot
-                        .http(url)
-                        .header('Content-Type', 'application/json')
-
-            if sendToken
-                request = request.query(access_token: self.token)
-
-            request.post(fbData) (error, response, body) ->
+        request = new Promise((resolve, reject) ->
+            self.robot
+                .http(url)
+                .header('Content-Type', 'application/json')
+                .query(query)
+                .post(fbData) (error, response, body) ->
                     if error
                         self.robot.logger.error "Error sending message: #{err}"
                         self._sendToSlack "Error sending message to facebook webhook\n #{err}"
@@ -273,8 +271,16 @@ class FBMessenger extends Adapter
     _getUser: (userId, page,isAdmin, callback) ->
         self = @
 
-        @robot.http(@apiURL + '/' + userId)
-            .query({fields:"first_name,last_name,profile_pic",access_token:self.token})
+        url = "#{@hooksUrl}/bots/#{@botId}/users/#{userId}"
+        query = {}
+        unless @hooksUrl
+            url = "#{@apiURL}/#{userId}"
+            query =
+                fields: "first_name,last_name,profile_pic"
+                access_token:self.token
+
+        @robot.http(url)
+            .query(query)
             .get() (error, response, body) ->
                 if error
                     errMsg = "Error getting user profile: #{error}"
