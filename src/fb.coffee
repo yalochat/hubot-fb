@@ -172,7 +172,7 @@ class FBMessenger extends Adapter
                     resolve({ statusCode: response.statusCode, body })
         )
 
-        Promise.delay(timeout, promise)
+        Promise.delay(timeout, request)
 
     _receiveAPI: (event) ->
         self = @
