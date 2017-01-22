@@ -139,8 +139,8 @@ class FBMessenger extends Adapter
         self = @
         fbData = JSON.stringify data
 
-        url = "#{hooksUrl}/bots/#{botId}"
-        unlesss @hooksUrl
+        url = "#{@hooksUrl}/bots/#{@botId}"
+        unless @hooksUrl
             url = @messageEndpoint
             sendToken = true
 
