@@ -33,8 +33,9 @@ class FBMessenger extends Adapter
         @httpErrors = 0
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
+        @hooksHost = proces.env['HOOKS_HOST'] or null
+        @botId = process.env['BOT_ID'] or null
 
-        @botId = process.env['BOT_ID']
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
             @sendImages = true
@@ -52,7 +53,7 @@ class FBMessenger extends Adapter
 
         @msg_maxlength = 320
 
-        Analytics.init @botId, @app_id, @page_id 
+        Analytics.init @botId, @app_id, @page_id
 
     send: (envelope, strings...) ->
         self = @
@@ -325,6 +326,12 @@ class FBMessenger extends Adapter
 
         unless process.env['FB_WEBHOOK_BASE']
             @emit 'error', new Error 'The environment variable "FB_WEBHOOK_BASE" is required. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
+
+        unless @hooksHost
+            @emit 'error', new Error 'The environment variable "HOOKS_HOST" is required'
+
+        unless @botId
+            @emit 'error', new Error 'The environment variable "BOT_ID" is required'
 
         @robot.http(@subscriptionEndpoint)
             .query({access_token:self.token})
