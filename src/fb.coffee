@@ -249,14 +249,15 @@ class FBMessenger extends Adapter
             .query({fields:"first_name,last_name,profile_pic",access_token:self.token})
             .get() (error, response, body) ->
                 if error
-                    self.robot.logger.error "Error getting user profile: #{error}"
-                    self._sendToSlack "Error getting user profile: #{error}"
+                    errMsg = "Error getting user profile: #{error}"
+                    self.robot.logger.error errMsg
+                    self._sendToSlack errMsg
                     return
                 unless response.statusCode is 200
-                    self.robot.logger.error "Get user profile request returned status " +
+                    errMsg = "Get user profile request returned status " +
                     "#{response.statusCode}. data='#{body}'"
-                    self._sendToSlack "Error trying to get FB user profile; request returned status " +
-                    "#{response.statusCode}. data='#{body}'"
+                    self.robot.logger.error errMsg
+                    self._sendToSlack errMsg
                     self.robot.logger.error body
                     return
                 userData = JSON.parse body
