@@ -371,8 +371,8 @@ class FBMessenger extends Adapter
                 .query({access_token:self.token})
                 .post() (error, response, body) ->
                     if response.statusCode != 200
-                    self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
-                    process.exit 0
+                        self.robot.logger.error "Response code -> " + response.statusCode + " Response message -> " + body
+                        process.exit 0
                     self.robot.logger.info "subscribed app to page: " + body  + response.statusCode
 
             @robot.http(@appAccessTokenEndpoint)
