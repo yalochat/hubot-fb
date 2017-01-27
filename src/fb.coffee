@@ -33,7 +33,7 @@ class FBMessenger extends Adapter
         @httpErrors = 0
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
-        @hooksHost = proces.env['HOOKS_HOST'] or null
+        @hooksHost = process.env['HOOKS_HOST'] or null
         @hooksUrl = "http://#{hooksHost}"
         @botId = process.env['BOT_ID'] or null
 
