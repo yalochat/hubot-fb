@@ -35,7 +35,7 @@ class FBMessenger extends Adapter
 
         @hooksHost = process.env['HOOKS_HOST'] or null
         @hooksUrl = "#{@hooksHost}"
-        @botId = process.env['BOT_ID'] or null
+        @botId = process.env['BOT_RUNNING'] or null
 
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
