@@ -291,7 +291,7 @@ class FBMessenger extends Adapter
     _getPageFromAPI: (pageId, callback) ->
         self = @
 
-        url = "#{@pagesURL}/"
+        url = "#{@pagesURL}/pages"
         query =
             q: "page_id:#{pageId}"
 
@@ -309,7 +309,7 @@ class FBMessenger extends Adapter
                     callback null
                     return
 
-                page = JSON.parse body
+                { data:page } = JSON.parse body
 
                 callback page
 
@@ -384,7 +384,7 @@ class FBMessenger extends Adapter
             unless @hooksUrl
                 @emit 'error', new Error 'The environment variable "HOOKS_HOST" is required'
 
-            unless @pagesURL
+            unless @pagesUrl
                 @emit 'error', new Error 'The environment variable "PAGES_URL" is required'
 
 
