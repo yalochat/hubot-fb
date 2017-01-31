@@ -291,7 +291,7 @@ class FBMessenger extends Adapter
     _getPageFromAPI: (pageId, callback) ->
         self = @
 
-        url = "#{@pagesURL}/pages"
+        url = "#{@pagesUrl}/pages"
         query =
             q: "page_id:#{pageId}"
 
