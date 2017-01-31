@@ -86,7 +86,7 @@ class FBMessenger extends Adapter
 
         @_sendMessage data, pageId
 
-    _sendRich: (user, page, richMsg) ->
+    _sendRich: (user, pageId, richMsg) ->
         data = {
             recipient: {id: user},
             message: richMsg
