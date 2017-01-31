@@ -142,11 +142,11 @@ class FBMessenger extends Adapter
 
         request = new Promise((resolve, reject) ->
             self._getAndSetPage pageId, (page) ->
-                unless @hooksUrl
-                    url = @messageEndpoint
+                unless self.hooksUrl
+                    url = self.messageEndpoint
                     query = access_token: self.token
                 else if page?
-                    url = "#{@hooksUrl}/bots/#{page.id}"
+                    url = "#{self.hooksUrl}/bots/#{page.id}"
                     query = {}
                 else
                     return reject(new Error "Page with id: #{pageId} doesn't exists'")
