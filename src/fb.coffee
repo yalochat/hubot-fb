@@ -33,9 +33,10 @@ class FBMessenger extends Adapter
         @httpErrors = 0
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
-        @hooksHost = process.env['HOOKS_HOST'] or null
-        @hooksUrl = "#{@hooksHost}"
+        @hooksUrl = process.env['HOOKS_HOST'] or null
         @botId = process.env['BOT_RUNNING'] or null
+
+        @pagesUrl = process.env['PAGES_URL'] or null
 
         _sendImages = process.env['FB_SEND_IMAGES']
         if _sendImages is undefined
@@ -60,14 +61,14 @@ class FBMessenger extends Adapter
         self = @
         Promise.each strings, (msg) ->
             if typeof msg is 'string'
-                self._sendText(envelope.user.id, msg)
+                self._sendText(envelope.user.id, envelope.room, msg)
             else
-                self._sendRich(envelope.user.id, msg)
+                self._sendRich(envelope.user.id, envelope.room, msg)
 
     reply: (envelope, strings...) ->
         @send envelope, strings
 
-    _sendText: (user, msg) ->
+    _sendText: (user, pageId, msg) ->
         data = {
             recipient: {id: user},
             message: {}
@@ -83,19 +84,19 @@ class FBMessenger extends Adapter
         else
             data.message.text = msg
 
-        @_sendMessage data
+        @_sendMessage data, pageId
 
-    _sendRich: (user, richMsg) ->
+    _sendRich: (user, page, richMsg) ->
         data = {
             recipient: {id: user},
             message: richMsg
         }
-        @_sendMessage data
+        @_sendMessage data, pageId
 
     _calculateReadingTime: (text) ->
         (text.split(' ').length / 5) * 1100
 
-    _sendMessage: (data) ->
+    _sendMessage: (data, pageId) ->
         self = @
 
         # Make payload used to send typing event
@@ -105,7 +106,7 @@ class FBMessenger extends Adapter
             sender_action: 'typing_on'
 
         # Send event typing
-        @_sendAPI(typing)
+        @_sendAPI(typing, pageId)
             .then( ->
                 # Calculate timeout for send message
                 timeout = 0
@@ -115,7 +116,7 @@ class FBMessenger extends Adapter
                     timeout = self._calculateReadingTime(data.message.attachment.payload.text)
 
                 # Send message applying timeout in seconds
-                return self._sendAPI(data, timeout)
+                return self._sendAPI(data, pageId, timeout)
             )
 
     _sendToSlack: (text) ->
@@ -135,41 +136,45 @@ class FBMessenger extends Adapter
         else
             @robot.logger.error "Trying to send notification to slack but I don't have a slack webhook"
 
-    _sendAPI: (data, timeout = 0) ->
+    _sendAPI: (data, pageId, timeout = 0) ->
         self = @
         fbData = JSON.stringify data
 
-        url = "#{@hooksUrl}/bots/#{@botId}"
-        query = {}
-        unless @hooksUrl
-            url = @messageEndpoint
-            query = access_token: self.token
-
         request = new Promise((resolve, reject) ->
-            self.robot
-                .http(url)
-                .header('Content-Type', 'application/json')
-                .query(query)
-                .post(fbData) (error, response, body) ->
-                    if error
-                        self.robot.logger.error "Error sending message: #{err}"
-                        self._sendToSlack "Error sending message to facebook webhook\n #{err}"
-                        return reject(error)
+            self._getAndSetPage pageId, (page) ->
+                unless @hooksUrl
+                    url = @messageEndpoint
+                    query = access_token: self.token
+                else if page?
+                    url = "#{@hooksUrl}/bots/#{page.id}"
+                    query = {}
+                else
+                    return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
-                    if response.statusCode in [200, 201]
-                        self.robot.logger.info "Send request returned status #{response.statusCode}, data #{JSON.stringify(data)}"
-                        self.robot.logger.info response.body
-                    else
-                        try
-                            errMsg = JSON.parse body
-                            self.robot.logger.error "Facebook webhook responded with an error #{errMsg.error.message}"
-                            self._sendToSlack "Facebook webhook responded with an error\n #{errMsg.error.message}"
-                        catch e
-                            self.robot.logger.error "Error parsing JSON #{body}"
+                self.robot
+                    .http(url)
+                    .header('Content-Type', 'application/json')
+                    .query(query)
+                    .post(fbData) (error, response, body) ->
+                        if error
+                            self.robot.logger.error "Error sending message: #{err}"
+                            self._sendToSlack "Error sending message to facebook webhook\n #{err}"
+                            return reject(error)
 
-                    # If error doesn't exists, then track message
-                    botmetrics.trackOutgoing(data)
-                    resolve({ statusCode: response.statusCode, body })
+                        if response.statusCode in [200, 201]
+                            self.robot.logger.info "Send request returned status #{response.statusCode}, data #{JSON.stringify(data)}"
+                            self.robot.logger.info response.body
+                        else
+                            try
+                                errMsg = JSON.parse body
+                                self.robot.logger.error "Facebook webhook responded with an error #{errMsg.error.message}"
+                                self._sendToSlack "Facebook webhook responded with an error\n #{errMsg.error.message}"
+                            catch e
+                                self.robot.logger.error "Error parsing JSON #{body}"
+
+                        # If error doesn't exists, then track message
+                        botmetrics.trackOutgoing(data)
+                        resolve({ statusCode: response.statusCode, body })
         )
 
         Promise.delay(timeout, request)
@@ -268,6 +273,47 @@ class FBMessenger extends Adapter
         @robot.emit "fb_optin", envelope
         @robot.emit "fb_authentication", envelope
 
+    _getAndSetPage: (pageId, callback) ->
+        self = @
+        # Get page information based on room id if @pagesUrl has been assigned
+        if @pagesUrl
+            page = @robot.brain.get pageId
+            unless page?
+                @_getPageFromAPI pageId, (page) ->
+                    if page?
+                        self.robot.brain.set pageId, page
+                    callback page
+            else
+                callback page
+        else
+            callback null
+
+    _getPageFromAPI: (pageId, callback) ->
+        self = @
+
+        url = "#{@pagesURL}/"
+        query =
+            q: "page_id:#{pageId}"
+
+        @robot.http(url)
+            .query(query)
+            .get() (error, response, body) ->
+                if error
+                    self.robot.logger.error "Error getting page: #{error}"
+                    callback null
+                    return
+
+                unless response.statusCode is 200
+                    errMsg = "Get page with id: #{pageId} returned status #{response.statusCode}"
+                    self.robot.logger.error errMsg
+                    callback null
+                    return
+
+                page = JSON.parse body
+
+                callback page
+
+
     _getUser: (userId, page,isAdmin, callback) ->
         self = @
 
@@ -335,8 +381,11 @@ class FBMessenger extends Adapter
             unless @webhookURL
                 @emit 'error', new Error 'The environment variable "FB_WEBHOOK_BASE" is required when you set the variable "FB_SET_WEBHOOK equals true. See https://github.com/chen-ye/hubot-fb/blob/master/README.md for details.'
         else
-            unless @hooksHost
+            unless @hooksUrl
                 @emit 'error', new Error 'The environment variable "HOOKS_HOST" is required'
+
+            unless @pagesURL
+                @emit 'error', new Error 'The environment variable "PAGES_URL" is required'
 
 
         unless @page_id
