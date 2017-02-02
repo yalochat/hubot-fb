@@ -329,7 +329,7 @@ class FBMessenger extends Adapter
             else
                 return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
-            @robot.http(url)
+            self.robot.http(url)
                 .query(query)
                 .get() (error, response, body) ->
                     if error
