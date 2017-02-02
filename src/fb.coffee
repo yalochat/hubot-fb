@@ -314,43 +314,47 @@ class FBMessenger extends Adapter
                 callback page
 
 
-    _getUser: (userId, page,isAdmin, callback) ->
+    _getUser: (userId, pageId ,isAdmin, callback) ->
         self = @
 
-        url = "#{@hooksUrl}/bots/#{@botId}/users/#{userId}"
-        query = {}
-        unless @hooksUrl
-            url = "#{@apiURL}/#{userId}"
-            query =
-                fields: "first_name,last_name,profile_pic"
-                access_token:self.token
+        self._getAndSetPage pageId, (page) ->
+            unless self.hooksUrl
+                url = "#{self.apiURL}/#{userId}"
+                query =
+                    fields: "first_name,last_name,profile_pic"
+                    access_token:self.token
+            else if page?
+                url = "#{self.hooksUrl}/bots/#{page.id}/users/#{userId}"
+                query = {}
+            else
+                return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
-        @robot.http(url)
-            .query(query)
-            .get() (error, response, body) ->
-                if error
-                    errMsg = "Error getting user profile: #{error}"
-                    self.robot.logger.error errMsg
-                    self._sendToSlack errMsg
-                    return
-                unless response.statusCode is 200
-                    errMsg = "Get user profile request returned status " +
-                    "#{response.statusCode}. data='#{body}'"
-                    self.robot.logger.error errMsg
-                    self._sendToSlack errMsg
-                    self.robot.logger.error body
-                    return
-                userData = JSON.parse body
+            @robot.http(url)
+                .query(query)
+                .get() (error, response, body) ->
+                    if error
+                        errMsg = "Error getting user profile: #{error}"
+                        self.robot.logger.error errMsg
+                        self._sendToSlack errMsg
+                        return
+                    unless response.statusCode is 200
+                        errMsg = "Get user profile request returned status " +
+                        "#{response.statusCode}. data='#{body}'"
+                        self.robot.logger.error errMsg
+                        self._sendToSlack errMsg
+                        self.robot.logger.error body
+                        return
+                    userData = JSON.parse body
 
-                userData.name = userData.first_name
-                userData.room = page
-                userData.admin = isAdmin
+                    userData.name = userData.first_name
+                    userData.room = pageId
+                    userData.admin = isAdmin
 
-                user = new User userId, userData
-                if !isAdmin
-                  self.robot.brain.data.users[userId] = user
+                    user = new User userId, userData
+                    if !isAdmin
+                        self.robot.brain.data.users[userId] = user
 
-                callback user
+                    callback user
 
     toBool: (string) ->
         areTrue = [
