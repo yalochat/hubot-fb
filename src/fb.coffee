@@ -99,25 +99,17 @@ class FBMessenger extends Adapter
     _sendMessage: (data, pageId) ->
         self = @
 
-        # Make payload used to send typing event
-        typing =
-            recipient:
-                id: data.recipient.id
-            sender_action: 'typing_on'
 
-        # Send event typing
-        @_sendAPI(typing, pageId)
-            .then( ->
                 # Calculate timeout for send message
-                timeout = 0
-                if data.message.text?
-                    timeout = self._calculateReadingTime(data.message.text)
-                else if data.message.attachment?.payload?.text
-                    timeout = self._calculateReadingTime(data.message.attachment.payload.text)
+        timeout = 0
+        if data.message.text?
+            timeout = self._calculateReadingTime(data.message.text)
+        else if data.message.attachment?.payload?.text
+            timeout = self._calculateReadingTime(data.message.attachment.payload.text)
 
-                # Send message applying timeout in seconds
-                return self._sendAPI(data, pageId, timeout)
-            )
+        # Send message applying timeout in seconds
+        return self._sendAPI(data, pageId, timeout)
+
 
     _sendToSlack: (text) ->
         self = @
@@ -181,6 +173,15 @@ class FBMessenger extends Adapter
 
     _receiveAPI: (event) ->
         self = @
+        # Make payload used to send typing event
+        typing =
+            recipient:
+                id: event.sender.id
+            sender_action: 'typing_on'
+
+        # Send event typing if theres a message on the event.
+        if event.message
+          @_sendAPI(typing)
 
         user = @robot.brain.data.users[event.sender.id]
         unless user?
