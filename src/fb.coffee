@@ -100,12 +100,12 @@ class FBMessenger extends Adapter
         self = @
 
 
-                # Calculate timeout for send message
+        # Calculate timeout for send message
         timeout = 0
         if data.message.text?
             timeout = self._calculateReadingTime(data.message.text)
-        else if data.message.attachment?.payload?.text
-            timeout = self._calculateReadingTime(data.message.attachment.payload.text)
+        else
+            timeout = 3000
 
         # Send message applying timeout in seconds
         return self._sendAPI(data, pageId, timeout)
@@ -180,7 +180,7 @@ class FBMessenger extends Adapter
             sender_action: 'typing_on'
 
         # Send event typing if theres a message on the event.
-        if event.message
+        if event.message || event.postback
           @_sendAPI(typing)
 
         user = @robot.brain.data.users[event.sender.id]
