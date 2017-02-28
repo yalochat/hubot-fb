@@ -11,7 +11,7 @@ inspect = require('util').inspect
 metricsToken = process.env.METRICS_TOKEN or null
 botmetrics = require('node-botmetrics')(metricsToken).facebook
 Analytics = require '@engyalo/fb-messenger-events'
-
+Dashbot = require('dashbot')(process.env.DASHBOT_API_KEY).facebook
 
 class FBMessenger extends Adapter
 
@@ -148,6 +148,7 @@ class FBMessenger extends Adapter
                     .header('Content-Type', 'application/json')
                     .query(query)
                     .post(fbData) (error, response, body) ->
+                        Dashbot.logOutgoing(data, response.body);
                         if error
                             self.robot.logger.error "Error sending message: #{err}"
                             self._sendToSlack "Error sending message to facebook webhook\n #{err}"
@@ -416,6 +417,7 @@ class FBMessenger extends Adapter
             self.robot.logger.debug "Received payload: " + JSON.stringify(req.body)
             botmetrics.trackIncoming(req.body)
             messaging_events = req.body.entry[0].messaging
+            Dashbot.logIncoming req.body
             self._receiveAPI event for event in messaging_events
             res.send 200
 
