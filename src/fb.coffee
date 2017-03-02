@@ -105,9 +105,9 @@ class FBMessenger extends Adapter
         # Calculate timeout for send message
         timeout = 0
         if data.message.text?
-            timeout = self._calculateReadingTime(data.message.text) * @typingIndicators
+            timeout = self._calculateReadingTime(data.message.text) * @typingIndicatorsMultiplier
         else
-            timeout = 3000  * @typingIndicators
+            timeout = 3000  * @typingIndicatorsMultiplier
 
         # Send message applying timeout in seconds
         return self._sendAPI(data, pageId, timeout)
