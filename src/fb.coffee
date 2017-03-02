@@ -33,6 +33,8 @@ class FBMessenger extends Adapter
         @httpErrors = 0
         @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
 
+        @typingIndicatorsMultiplier      = process.env['TYPING_INDICATORS_MULTIPLIER'] or 1
+
         @hooksUrl = process.env['HOOKS_HOST'] or null
         @botId = process.env['BOT_RUNNING'] or null
 
@@ -103,9 +105,9 @@ class FBMessenger extends Adapter
         # Calculate timeout for send message
         timeout = 0
         if data.message.text?
-            timeout = self._calculateReadingTime(data.message.text)
+            timeout = self._calculateReadingTime(data.message.text) * @typingIndicators
         else
-            timeout = 3000
+            timeout = 3000  * @typingIndicators
 
         # Send message applying timeout in seconds
         return self._sendAPI(data, pageId, timeout)
