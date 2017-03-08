@@ -251,7 +251,7 @@ class FBMessenger extends Adapter
         @robot.emit "fb_richMsg_#{attachment.type}", unique_envelope
 
     _processPostbackQuickReply: (event,envelope) ->
-        envelope.payload =  event.message.quick_reply.payload
+        envelope.payload =  if event.message.quick_reply.payload != 'null' then event.message.quick_reply.payload else event.message.text
         Analytics.track(envelope.user.id,envelope.payload)
         @robot.emit "fb_postback", envelope
 
