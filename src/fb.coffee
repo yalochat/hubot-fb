@@ -62,11 +62,11 @@ class FBMessenger extends Adapter
     send: (envelope, templates...) ->
         self = @
         Promise.each(templates, ({slug, template}) ->
-            if typeof msg is 'string'
+            if typeof template is 'string'
                 self._sendText(envelope.user.id, envelope.room, template, slug)
             else
                 self._sendRich(envelope.user.id, envelope.room, template, slug)
-
+        )
 
     reply: (envelope, strings...) ->
         @send envelope, strings
@@ -167,7 +167,7 @@ class FBMessenger extends Adapter
                             catch e
                                 self.robot.emit 'errorSendAPI',slug,data.recipient.id
                                 self.robot.logger.error "Error parsing JSON #{body}"
-                                return reject(new Error('Cannot send message to Facebook')
+                                return reject(new Error('Cannot send message to Facebook'))
 
                         # If error doesn't exists, then track message
                         botmetrics.trackOutgoing(data)
