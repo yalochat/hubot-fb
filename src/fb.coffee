@@ -59,13 +59,12 @@ class FBMessenger extends Adapter
 
         Analytics.init @botId, @app_id, @page_id
 
-    send: (envelope, templates...) ->
+     send: (envelope, templates...) ->
         self = @
         Promise.each(templates, ({slug, template}) ->
-            if typeof template is 'string'
-                self._sendText(envelope.user.id, envelope.room, template, slug)
-            else
-                self._sendRich(envelope.user.id, envelope.room, template, slug)
+            if template.type is 'text'
+                delete template.type
+            self._sendRich(envelope.user.id, envelope.room, template, slug)
         )
 
     reply: (envelope, strings...) ->
