@@ -59,18 +59,19 @@ class FBMessenger extends Adapter
 
         Analytics.init @botId, @app_id, @page_id
 
-    send: (envelope, strings...) ->
+    send: (envelope, templates...) ->
         self = @
-        Promise.each strings, (msg) ->
+        Promise.each(templates, ({slug, template}) ->
             if typeof msg is 'string'
-                self._sendText(envelope.user.id, envelope.room, msg)
+                self._sendText(envelope.user.id, envelope.room, template, slug)
             else
-                self._sendRich(envelope.user.id, envelope.room, msg)
+                self._sendRich(envelope.user.id, envelope.room, template, slug)
+
 
     reply: (envelope, strings...) ->
         @send envelope, strings
 
-    _sendText: (user, pageId, msg) ->
+    _sendText: (user, pageId, msg, slug) ->
         data = {
             recipient: {id: user},
             message: {}
@@ -86,19 +87,19 @@ class FBMessenger extends Adapter
         else
             data.message.text = msg
 
-        @_sendMessage data, pageId
+        @_sendMessage data, pageId, slug
 
-    _sendRich: (user, pageId, richMsg) ->
+    _sendRich: (user, pageId, richMsg, slug) ->
         data = {
             recipient: {id: user},
             message: richMsg
         }
-        @_sendMessage data, pageId
+        @_sendMessage data, pageId, slug
 
     _calculateReadingTime: (text) ->
         (text.split(' ').length / 5) * 1100
 
-    _sendMessage: (data, pageId) ->
+    _sendMessage: (data, pageId, slug) ->
         self = @
 
 
@@ -110,7 +111,7 @@ class FBMessenger extends Adapter
             timeout = 3000  * @typingIndicatorsMultiplier
 
         # Send message applying timeout in seconds
-        return self._sendAPI(data, pageId, timeout)
+        return self._sendAPI(data, pageId, timeout, slug)
 
 
     _sendToSlack: (text) ->
@@ -130,7 +131,7 @@ class FBMessenger extends Adapter
         else
             @robot.logger.error "Trying to send notification to slack but I don't have a slack webhook"
 
-    _sendAPI: (data, pageId, timeout = 0) ->
+    _sendAPI: (data, pageId, timeout = 0, slug) ->
         self = @
         fbData = JSON.stringify data
 
@@ -164,6 +165,7 @@ class FBMessenger extends Adapter
                                 self.robot.logger.error "Facebook webhook responded with an error #{errMsg.error.message}"
                                 self._sendToSlack "Facebook webhook responded with an error\n #{errMsg.error.message}"
                             catch e
+                                self.robot.emit 'errorSendAPI',slug,data.recipient.id
                                 self.robot.logger.error "Error parsing JSON #{body}"
 
                         # If error doesn't exists, then track message
