@@ -167,6 +167,7 @@ class FBMessenger extends Adapter
                             catch e
                                 self.robot.emit 'errorSendAPI',slug,data.recipient.id
                                 self.robot.logger.error "Error parsing JSON #{body}"
+                                return reject(new Error('Cannot send message to Facebook')
 
                         # If error doesn't exists, then track message
                         botmetrics.trackOutgoing(data)
