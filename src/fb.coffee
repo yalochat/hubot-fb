@@ -435,7 +435,8 @@ class FBMessenger extends Adapter
 
             @robot.http(@appAccessTokenEndpoint)
                 .get() (error, response, body) ->
-                    self.app_access_token = body.split("=").pop()
+                    respose = JSON.parse(body)
+                    self.app_access_token = response.access_token
                     self.robot.http(self.setWebhookEndpoint)
                     .query(
                         object: 'page',
