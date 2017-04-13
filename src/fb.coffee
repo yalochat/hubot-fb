@@ -16,8 +16,7 @@ Analytics = require '@engyalo/fb-messenger-events'
 class FBMessenger extends Adapter
 
     constructor: ->
-        super
-
+        super        
         @page_id    = process.env['FB_PAGE_ID']
         @app_id     = process.env['FB_APP_ID']
         @app_secret = process.env['FB_APP_SECRET']
@@ -185,16 +184,17 @@ class FBMessenger extends Adapter
         if event.message || event.postback
           @_sendAPI(typing)
 
-        user = @robot.brain.data.users[event.sender.id]
-        unless user?
-            self.robot.logger.debug "User doesn't exist, creating"
-            if event.message?.is_echo
-              event.sender.id = event.recipient.id
-            @_getUser event.sender.id, event.recipient.id,event.message?.is_echo, (user) ->
+        userPromise = @robot.brain.userById event.sender.id
+        userPromise.then (user) ->
+            unless user?
+                self.robot.logger.debug "User doesn't exist, creating"
+                if event.message?.is_echo
+                    event.sender.id = event.recipient.id
+                self._getUser event.sender.id, event.recipient.id,event.message?.is_echo, (user) ->
+                    self._dispatch event, user
+            else
+                self.robot.logger.debug "User exists"
                 self._dispatch event, user
-        else
-            self.robot.logger.debug "User exists"
-            self._dispatch event, user
 
     _dispatch: (event, user) ->
         envelope = {
@@ -227,7 +227,7 @@ class FBMessenger extends Adapter
               @_processPostbackQuickReply event, envelope
               #@receive msg
             else
-              if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
+              if (text.startsWith('/') && envelope.user.admin) || !envelope.useradmin
                 @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
@@ -280,14 +280,15 @@ class FBMessenger extends Adapter
         self = @
         # Get page information based on room id if @pagesUrl has been assigned
         if @pagesUrl
-            page = @robot.brain.get pageId
-            unless page?
-                @_getPageFromAPI pageId, (page) ->
-                    if page?
-                        self.robot.brain.set pageId, page
+            pagePromise = @robot.brain.get pageId
+            pagePromise.then (page) ->
+                unless page?
+                    @_getPageFromAPI pageId, (page) ->
+                        if page?
+                            self.robot.brain.set pageId, page
+                        callback page
+                else
                     callback page
-            else
-                callback page
         else
             callback null
 
@@ -355,7 +356,7 @@ class FBMessenger extends Adapter
 
                     user = new User userId, userData
                     if !isAdmin
-                        self.robot.brain.data.users[userId] = user
+                        self.robot.brain.userForId userId, userData
 
                     callback user
 
