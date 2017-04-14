@@ -16,7 +16,7 @@ Analytics = require '@engyalo/fb-messenger-events'
 class FBMessenger extends Adapter
 
     constructor: ->
-        super        
+        super
         @page_id    = process.env['FB_PAGE_ID']
         @app_id     = process.env['FB_APP_ID']
         @app_secret = process.env['FB_APP_SECRET']
@@ -202,7 +202,7 @@ class FBMessenger extends Adapter
             user: user,
             room: event.recipient.id
         }
-        
+
         if event.message?
             @_processMessage event, envelope
         else if event.postback?
@@ -276,15 +276,15 @@ class FBMessenger extends Adapter
         @robot.emit "fb_optin", envelope
         @robot.emit "fb_authentication", envelope
 
-    _getAndSetPage: (pageId, callback) ->        
-        self = @        
+    _getAndSetPage: (pageId, callback) ->
+        self = @
         # Get page information based on room id if @pagesUrl has been assigned
         if @pagesUrl
             pagePromise = @robot.brain.get pageId
             pagePromise.then (page) ->
                 unless page?
                     @_getPageFromAPI pageId, (newPage) ->
-                        if page?                            
+                        if page?
                             setPromise = self.robot.brain.set pageId, newPage
                             setPromise.then (data) ->
                                 callback newPage
