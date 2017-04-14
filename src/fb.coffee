@@ -202,7 +202,7 @@ class FBMessenger extends Adapter
             user: user,
             room: event.recipient.id
         }
-
+        
         if event.message?
             @_processMessage event, envelope
         else if event.postback?
@@ -227,7 +227,7 @@ class FBMessenger extends Adapter
               @_processPostbackQuickReply event, envelope
               #@receive msg
             else
-              if (text.startsWith('/') && envelope.user.admin) || !envelope.useradmin
+              if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
                 @receive msg
             @robot.logger.info "Reply message to room/message: " + envelope.user.name + "/" + event.message.mid
 
@@ -276,17 +276,20 @@ class FBMessenger extends Adapter
         @robot.emit "fb_optin", envelope
         @robot.emit "fb_authentication", envelope
 
-    _getAndSetPage: (pageId, callback) ->
-        self = @
+    _getAndSetPage: (pageId, callback) ->        
+        self = @        
         # Get page information based on room id if @pagesUrl has been assigned
         if @pagesUrl
             pagePromise = @robot.brain.get pageId
             pagePromise.then (page) ->
                 unless page?
-                    @_getPageFromAPI pageId, (page) ->
-                        if page?
-                            self.robot.brain.set pageId, page
-                        callback page
+                    @_getPageFromAPI pageId, (newPage) ->
+                        if page?                            
+                            setPromise = self.robot.brain.set pageId, newPage
+                            setPromise.then (data) ->
+                                callback newPage
+                        else
+                            callback page
                 else
                     callback page
         else
@@ -356,9 +359,11 @@ class FBMessenger extends Adapter
 
                     user = new User userId, userData
                     if !isAdmin
-                        self.robot.brain.userForId userId, userData
-
-                    callback user
+                        saveUserPromise = self.robot.brain.userForId userId, userData
+                        saveUserPromise.then (result) ->
+                            callback user
+                    else
+                        callback user
 
     toBool: (string) ->
         areTrue = [
