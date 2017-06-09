@@ -47,6 +47,7 @@ class FBMessenger extends Adapter
 
         @autoHear = process.env['FB_AUTOHEAR'] is 'true'
 
+        @testing = process.env['FB_TESTING'] or false
         @apiURL = process.env['FB_API_URL'] or a'https://graph.facebook.com/v2.6'
         @pageURL = @apiURL + '/'+ @page_id
         @messageEndpoint = @pageURL + '/messages?access_token=' + @token
@@ -430,7 +431,7 @@ class FBMessenger extends Adapter
             res.send 200
 
         # Suscribe to app and update FB webhook
-        if @setWebHook
+        if @setWebHook && !@testing
             @robot.http(@subscriptionEndpoint)
                 .query({access_token:self.token})
                 .post() (error, response, body) ->
