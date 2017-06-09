@@ -47,7 +47,7 @@ class FBMessenger extends Adapter
 
         @autoHear = process.env['FB_AUTOHEAR'] is 'true'
 
-        @apiURL = 'https://graph.facebook.com/v2.6'
+        @apiURL = process.env['FB_API_URL'] or a'https://graph.facebook.com/v2.6'
         @pageURL = @apiURL + '/'+ @page_id
         @messageEndpoint = @pageURL + '/messages?access_token=' + @token
         @subscriptionEndpoint = @pageURL + '/subscribed_apps?access_token=' + @token
