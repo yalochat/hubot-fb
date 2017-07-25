@@ -150,8 +150,8 @@ class FBMessenger extends Adapter
                     .query(query)
                     .post(fbData) (error, response, body) ->
                         if error
-                            self.robot.logger.error "Error sending message: #{err}"
-                            self._sendToSlack "Error sending message to facebook webhook\n #{err}"
+                            self.robot.logger.error "Error sending message: #{error}"
+                            self._sendToSlack "Error sending message to facebook webhook\n #{error}"
                             return reject(error)
 
                         if response.statusCode in [200, 201]
