@@ -290,10 +290,16 @@ class FBMessenger extends Adapter
                             setPromise = self.robot.brain.set pageId, newPage
                             setPromise.then (data) ->
                                 callback newPage
+                            setPromise.catch (error) ->
+                                self.robot.logger.error "Error setting pageId", error
+                                callback null
                         else
                             callback page
                 else
                     callback page
+            pagePromise.catch (error) ->
+                self.robot.logger.error "Error getting pageId", error
+                callback null
         else
             callback null
 
