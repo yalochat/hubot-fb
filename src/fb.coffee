@@ -241,7 +241,7 @@ class FBMessenger extends Adapter
         # If it is a private chat, automatically prepend the bot name if it does not exist already.
         if (chat_id > 0)
             # Strip out the stuff we don't need.
-            text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(), 'gi'), '');
+            text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(), 'gi'), '')
             text = text.replace(new RegExp('^@?' + @robot.alias.toLowerCase(), 'gi'), '') if @robot.alias
             text = @robot.name + ' ' + text
 
