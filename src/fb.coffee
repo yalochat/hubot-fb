@@ -54,6 +54,10 @@ class FBMessenger extends Adapter
         @appAccessTokenEndpoint = 'https://graph.facebook.com/oauth/access_token?client_id=' + @app_id + '&client_secret=' + @app_secret + '&grant_type=client_credentials'
         @setWebhookEndpoint = @pageURL + '/subscriptions'
 
+        @defaultUserName = process.env['USER_DEFAULT_NAME'] or ""
+        @defaultUserLastName = process.env['USER_DEFAULT_LAST_NAME'] or ""
+        @defaultUserPicture = process.env['USER_DEFAULT_PICTURE'] or ""
+
         @msg_maxlength = 320
 
         Analytics.init @botId, @app_id, @page_id
@@ -150,7 +154,7 @@ class FBMessenger extends Adapter
                     .query(query)
                     .post(fbData) (error, response, body) ->
                         if error
-                            self.robot.logger.error "Error sending message"
+                            self.robot.logger.error "Error sending message", error
                             self._sendToSlack "Error sending message to facebook webhook\n #{error}"
                             return reject(error)
 
@@ -358,7 +362,9 @@ class FBMessenger extends Adapter
                         self.robot.logger.error errMsg
                         self._sendToSlack errMsg
                         self.robot.logger.error body
-                        return
+                        body = "{\"first_name\":\"#{self.defaultUserName}\",\
+                        \"last_name\":\"#{self.defaultUserLastName}\"\,\
+                        \"profile_pic\":\"#{self.defaultUserPicture}\"}"
                     userData = JSON.parse body
 
                     userData.name = userData.first_name
