@@ -138,8 +138,8 @@ class FBMessenger extends Adapter
         self.httpErrors++
 
     else
-      @robot.logger.error "Trying to send notification to\
-      slack but I don't have a slack webhook"
+      @robot.logger.error "Trying to send notification to " +
+      "slack but I don't have a slack webhook"
 
   _sendAPI: (data, pageId, timeout = 0, slug) ->
     self = @
@@ -163,8 +163,8 @@ class FBMessenger extends Adapter
           .post(fbData) (error, response, body) ->
             if error
               self.robot.logger.error "Error sending message: #{error}"
-              self._sendToSlack "Error sending message to facebook \
-              webhook\n #{error}"
+              self._sendToSlack "Error sending message to facebook webhook" +
+              "\n#{error}"
               return reject(error)
 
             if response.statusCode in [200, 201]
@@ -258,9 +258,9 @@ class FBMessenger extends Adapter
     # if it does not exist already.
     if (chat_id > 0)
       # Strip out the stuff we don't need.
-      text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(),\
+      text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(), \
        'gi'), '')
-      text = text.replace(new RegExp('^@?' + @robot.alias.toLowerCase(),\
+      text = text.replace(new RegExp('^@?' + @robot.alias.toLowerCase(), \
       'gi'), '') if @robot.alias
       text = @robot.name + ' ' + text
 
@@ -314,10 +314,16 @@ class FBMessenger extends Adapter
               setPromise = self.robot.brain.set pageId, newPage
               setPromise.then (data) ->
                 callback newPage
+              setPromise.catch (error) ->
+                self.robot.logger.error "Error setting pageId", error
+                callback null
             else
               callback page
         else
           callback page
+      pagePromise.catch (error) ->
+        self.robot.logger.error "Error getting pageId", error
+        callback null
     else
       callback null
 
