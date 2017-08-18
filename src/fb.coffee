@@ -258,7 +258,7 @@ class FBMessenger extends Adapter
           if text.startsWith('/')
             @receive msg
           else
-            msg = new TextMessage envelope.user, '/botOn', event.message.mid
+            msg = new TextMessage envelope.user, '/botOff', event.message.mid
             @receive msg
         else
           @receive msg
