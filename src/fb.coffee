@@ -50,12 +50,12 @@ class FBMessenger extends Adapter
     @autoHear = process.env['FB_AUTOHEAR'] is 'true'
 
     @apiURL = 'https://graph.facebook.com/v2.6'
-    @pageURL = @apiURL + '/'+ @page_id
+    @pageURL = @apiURL + '/' + @page_id
     @messageEndpoint = @pageURL + '/messages?access_token=' + @token
     @subscriptionEndpoint = @pageURL + '/subscribed_apps?access_token=' + @token
-    @appAccessTokenEndpoint = "https://graph.facebook.com/oauth/access_token?\
-    client_id=#{@app_id}&client_secret=#{@app_secret}&\
-    grant_type=client_credentials"
+    @appAccessTokenEndpoint = "https://graph.facebook.com/oauth/access_token?" +
+    "client_id=#{@app_id}&client_secret=#{@app_secret}&" +
+    "grant_type=client_credentials"
     @setWebhookEndpoint = @pageURL + '/subscriptions'
 
     @defaultUserName = process.env['USER_DEFAULT_NAME'] or ""
@@ -66,13 +66,13 @@ class FBMessenger extends Adapter
 
     Analytics.init @botId, @app_id, @page_id
 
-    send: (envelope, templates...) ->
-      self = @
-      Promise.each(templates, ({slug, template}) ->
-        if template.type is 'text'
-          delete template.type
-        self._sendRich(envelope.user.id, envelope.room, template, slug)
-      )
+  send: (envelope, templates...) ->
+    self = @
+    Promise.each(templates, ({slug, template}) ->
+      if template.type is 'text'
+        delete template.type
+      self._sendRich(envelope.user.id, envelope.room, template, slug)
+    )
 
   reply: (envelope, strings...) ->
     @send envelope, strings
@@ -192,6 +192,12 @@ class FBMessenger extends Adapter
 
   _receiveAPI: (event) ->
     self = @
+
+    # Validate if message is from bot
+    if event.message?.app_id?
+      self.robot.logger.debug "Skipping incoming request, is an echo from bot message."
+      return
+
     # Make payload used to send typing event
     typing =
       recipient:
@@ -202,8 +208,8 @@ class FBMessenger extends Adapter
     if event.message || event.postback
       @_sendAPI(typing)
 
-    userPromise = @robot.brain.userById event.sender.id
-    userPromise.then (user) ->
+    @robot.brain.userById event.sender.id
+    .then (user) ->
       unless user?
         self.robot.logger.debug "User doesn't exist, creating"
         if event.message?.is_echo
@@ -248,7 +254,13 @@ class FBMessenger extends Adapter
         @_processPostbackQuickReply event, envelope
         #@receive msg
       else
-        if (text.startsWith('/') && envelope.user.admin) || !envelope.user.admin
+        if envelope.user.admin
+          if text.startsWith('/')
+            @receive msg
+          else
+            msg = new TextMessage envelope.user, '/botOff', event.message.mid
+            @receive msg
+        else
           @receive msg
       @robot.logger.info "Reply message to room/message: \
       #{envelope.user.name}/#{event.message.mid}"
@@ -471,7 +483,7 @@ class FBMessenger extends Adapter
         res.send 400
 
     @robot.router.post [@routeURL], (req, res) ->
-      self.robot.logger.debug "Received payload: " + JSON.stringify(req.body)
+      self.robot.logger.debug "Received payload: %j", req.body
       botmetrics.trackIncoming(req.body)
       messaging_events = req.body.entry[0].messaging
       self._receiveAPI event for event in messaging_events
