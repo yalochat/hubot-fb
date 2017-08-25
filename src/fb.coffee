@@ -403,6 +403,7 @@ class FBMessenger extends Adapter
         userData.name = userData.first_name
         userData.room = pageId
         userData.admin = isAdmin
+        userData.id = userId
 
         user = new User userId, userData
         if !isAdmin
