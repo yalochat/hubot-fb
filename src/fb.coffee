@@ -373,7 +373,7 @@ class FBMessenger extends Adapter
       unless self.hooksUrl
         url = "#{self.apiURL}/#{userId}"
         query =
-            fields: "first_name,last_name,profile_pic"
+            fields: "first_name,last_name"
             access_token:self.token
       else if page?
         url = "#{self.hooksUrl}/bots/#{page.id}/users/#{userId}"
