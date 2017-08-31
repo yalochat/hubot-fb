@@ -195,8 +195,15 @@ class FBMessenger extends Adapter
 
     # Validate if message is from bot
     if event.message?.app_id?
-      self.robot.logger.debug "Skipping incoming request, is an echo from bot message."
+      self.robot.logger.debug "Skipping incoming request, is an echo from bot"
+      +" message."
       return
+
+  _receiveComment: (event) ->
+    self = @
+    if event.value?.item? == 'comment'
+      @robot.emit "fb_comment", event
+
 
     # Make payload used to send typing event
     typing =
@@ -486,8 +493,12 @@ class FBMessenger extends Adapter
     @robot.router.post [@routeURL], (req, res) ->
       self.robot.logger.debug "Received payload: %j", req.body
       botmetrics.trackIncoming(req.body)
-      messaging_events = req.body.entry[0].messaging
-      self._receiveAPI event for event in messaging_events
+      [entry] = req.body.entry
+      if entry.changes?.length > 0
+        self._receiveComment entry.changes[0]
+      else
+        messaging_events = entry.messaging
+        self._receiveAPI event for event in messaging_events
       res.send 200
 
     # Suscribe to app and update FB webhook
