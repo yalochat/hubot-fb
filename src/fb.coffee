@@ -224,17 +224,12 @@ class FBMessenger extends Adapter
 
   _receiveComment: (event) ->
     self = @
-    console.log '--->',event.value.item
     if event.value?.item == 'comment'
-      console.log 'emit eveng'
       @robot.emit "fb_comment", event
 
   reply: (envelope, commentId, reply) ->
-    console.log '-',envelope,'-',commentId,'-',reply
     self = @
-    console.log '4444444444',commentId,'@#@#@#@#',JSON.stringify(commentId)
     url = self.apiURL + "/#{commentId}/private_replies?access_token=#{self.commentsToken}"
-    console.log '--)',url
     @robot.http(url)
     .query({message: reply})
     .post() (error, response, body) ->
@@ -512,7 +507,6 @@ class FBMessenger extends Adapter
       botmetrics.trackIncoming(req.body)
       [entry] = req.body.entry
       if entry.changes?.length > 0
-        console.log '**********'
         self._receiveComment entry.changes[0]
       else
         messaging_events = entry.messaging
