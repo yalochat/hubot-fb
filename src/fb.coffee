@@ -29,6 +29,8 @@ class FBMessenger extends Adapter
     @webhookURL = process.env['FB_WEBHOOK_BASE'] + @routeURL
     @setWebHook = @toBool(process.env['FB_SET_WEBHOOK'] or false)
 
+    @commentsToken = process.env['FB_COMMENTS_TOKEN'] or null
+
     @slackWebhook = process.env['SLACK_WEBHOOK'] or null
     @httpErrors = 0
     @httpErrorsMax = process.env['HTTP_ERRORS_MAX'] or 3
@@ -74,8 +76,6 @@ class FBMessenger extends Adapter
       self._sendRich(envelope.user.id, envelope.room, template, slug)
     )
 
-  reply: (envelope, strings...) ->
-    @send envelope, strings
 
   _sendText: (user, pageId, msg, slug) ->
     data = {
@@ -198,13 +198,6 @@ class FBMessenger extends Adapter
       self.robot.logger.debug "Skipping incoming request, is an echo from bot"
       +" message."
       return
-
-  _receiveComment: (event) ->
-    self = @
-    if event.value?.item? == 'comment'
-      @robot.emit "fb_comment", event
-
-
     # Make payload used to send typing event
     typing =
       recipient:
@@ -227,6 +220,30 @@ class FBMessenger extends Adapter
       else
         self.robot.logger.debug "User exists"
         self._dispatch event, user
+
+
+  _receiveComment: (event) ->
+    self = @
+    console.log '--->',event.value.item
+    if event.value?.item == 'comment'
+      console.log 'emit eveng'
+      @robot.emit "fb_comment", event
+
+  reply: (envelope, commentId, reply) ->
+    console.log '-',envelope,'-',commentId,'-',reply
+    self = @
+    console.log '4444444444',commentId,'@#@#@#@#',JSON.stringify(commentId)
+    url = self.apiURL + "/#{commentId}/private_replies?access_token=#{self.commentsToken}"
+    console.log '--)',url
+    @robot.http(url)
+    .query({message: reply})
+    .post() (error, response, body) ->
+      if response.statusCode != 200
+        self.robot.logger.error "Response code -> #{response.statusCode} \
+        Response message -> #{body}"
+        return
+      self.robot.logger.info "reply to comment: \
+      #{body} #{response.statusCode}"
 
   _dispatch: (event, user) ->
     envelope = {
@@ -495,6 +512,7 @@ class FBMessenger extends Adapter
       botmetrics.trackIncoming(req.body)
       [entry] = req.body.entry
       if entry.changes?.length > 0
+        console.log '**********'
         self._receiveComment entry.changes[0]
       else
         messaging_events = entry.messaging
