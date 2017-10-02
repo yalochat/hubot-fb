@@ -222,22 +222,11 @@ class FBMessenger extends Adapter
         self._dispatch event, user
 
 
-  _receiveComment: (event) ->
+  getCommentMessage: (commentId, callback) ->
     self = @
-    if event.value?.item == 'comment'
-      if event.value.message
-        @robot.emit "fb_comment", event
-      else
-        self.getCommentMessage event.value.comment_id
-
-  getCommentMessage: (commentId) ->
-    self = @
-    url = self.apiURL + "/#{commentId}"
-    query =
-        q: "access_token:#{self.comentsToken}"
+    url = self.apiURL + "/#{commentId}?access_token="+self.commentsToken
 
     @robot.http(url)
-    .query(query)
     .get() (error, response, body) ->
       if response.statusCode != 200
         self.robot.logger.error "Response code -> #{response.statusCode} \
@@ -245,15 +234,12 @@ class FBMessenger extends Adapter
         return
       self.robot.logger.info "get comment: \
       #{body} #{response.statusCode}"
-
-      body.comment_id = commentId
-      @robot.emit "fb_comment", event
-
+      comment = JSON.parse body
+      callback comment.message
 
   reply: (envelope, commentId, reply) ->
     self = @
-    url = self.apiURL + "/#{commentId}/private_replies?access_token="+
-    self.commentsToken
+    url = self.apiURL + "/#{commentId}/private_replies?access_token="+self.commentsToken
     @robot.http(url)
     .query({message: reply})
     .post() (error, response, body) ->
@@ -261,8 +247,8 @@ class FBMessenger extends Adapter
         self.robot.logger.error "Response code -> #{response.statusCode} \
         Response message -> #{body}"
         return
-      self.robot.logger.info "reply to comment: \
-      #{body} #{response.statusCode}"
+      self.robot.logger.info "reply to comment:#{body} #{response.statusCode}"
+
 
   _dispatch: (event, user) ->
     envelope = {
