@@ -221,6 +221,13 @@ class FBMessenger extends Adapter
         self.robot.logger.debug "User exists"
         self._dispatch event, user
 
+  _receiveComment: (event) ->
+    self = @
+    if event.value?.item == 'comment'
+      if event.value.message
+        @robot.emit "fb_comment", event
+      else
+        getCommentMessage event.value.comment_id
 
   getCommentMessage: (commentId, callback) ->
     self = @
