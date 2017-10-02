@@ -225,11 +225,35 @@ class FBMessenger extends Adapter
   _receiveComment: (event) ->
     self = @
     if event.value?.item == 'comment'
+      if event.value.message
+        @robot.emit "fb_comment", event
+      else
+        getCommentMessage event.value.comment_id
+
+  getCommentMessage: ( commentId) ->
+    self = @
+    url = self.apiURL + "/#{commentId}"
+    query =
+        q: "access_token:#{self.comentsToken}"
+
+    @robot.http(url)
+    .query(query)
+    .get() (error, response, body) ->
+      if response.statusCode != 200
+        self.robot.logger.error "Response code -> #{response.statusCode} \
+        Response message -> #{body}"
+        return
+      self.robot.logger.info "get comment: \
+      #{body} #{response.statusCode}"
+
+      body.comment_id = commentId
       @robot.emit "fb_comment", event
+
 
   reply: (envelope, commentId, reply) ->
     self = @
-    url = self.apiURL + "/#{commentId}/private_replies?access_token=#{self.commentsToken}"
+    url = self.apiURL + "/#{commentId}/private_replies?access_token="+
+    self.commentsToken
     @robot.http(url)
     .query({message: reply})
     .post() (error, response, body) ->
