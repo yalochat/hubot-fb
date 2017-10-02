@@ -227,7 +227,9 @@ class FBMessenger extends Adapter
       if event.value.message
         @robot.emit "fb_comment", event
       else
-        self.getCommentMessage event.value.comment_id
+        self.getCommentMessage event.value.comment_id, (message) ->
+          event.value.message = message
+          self.robot.emit "fb_comment", event
 
   getCommentMessage: (commentId, callback) ->
     self = @
