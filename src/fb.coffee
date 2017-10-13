@@ -73,7 +73,8 @@ class FBMessenger extends Adapter
     Promise.each(templates, ({slug, template}) ->
       if template.type is 'text'
         delete template.type
-      self._sendRich(envelope.user.id, envelope.room, template, slug)
+      self._sendRich(envelope.user?.id, envelope.room, template, slug,
+      envelope.message.event.optin?.user_ref)
     )
 
 
@@ -82,7 +83,6 @@ class FBMessenger extends Adapter
       recipient: {id: user},
       message: {}
     }
-
     if @sendImages
       mime = Mime.lookup(msg)
 
@@ -95,9 +95,10 @@ class FBMessenger extends Adapter
 
     @_sendMessage data, pageId, slug
 
-  _sendRich: (user, pageId, richMsg, slug) ->
+  _sendRich: (user, pageId, richMsg, slug, optinUser) ->
+    recipient = if user then {id:user} else {user_ref:optinUser}
     data = {
-      recipient: {id: user},
+      recipient,
       message: richMsg
     }
     @_sendMessage data, pageId, slug
@@ -155,7 +156,6 @@ class FBMessenger extends Adapter
           query = {}
         else
           return reject(new Error "Page with id: #{pageId} doesn't exists'")
-
         self.robot
           .http(url)
           .header('Content-Type', 'application/json')
@@ -201,25 +201,30 @@ class FBMessenger extends Adapter
     # Make payload used to send typing event
     typing =
       recipient:
-        id: event.sender.id
+        id: event.sender?.id
       sender_action: 'typing_on'
 
     # Send event typing if theres a message on the event.
     if event.message || event.postback
       @_sendAPI(typing)
 
-    @robot.brain.userById event.sender.id
-    .then (user) ->
-      unless user?
-        self.robot.logger.debug "User doesn't exist, creating"
-        if event.message?.is_echo
-          event.sender.id = event.recipient.id
-        self._getUser event.sender.id, event.recipient.id,\
-        event.message?.is_echo, (user) ->
+    if event.sender?.id
+      @robot.brain.userById event.sender.id
+      .then (user) ->
+        unless user?
+          self.robot.logger.debug "User doesn't exist, creating"
+          if event.message?.is_echo
+            event.sender.id = event.recipient.id
+          self._getUser event.sender.id, event.recipient.id,\
+          event.message?.is_echo, (user) ->
           self._dispatch event, user
-      else
-        self.robot.logger.debug "User exists"
-        self._dispatch event, user
+        else
+          self.robot.logger.debug "User exists"
+          self._dispatch event, user
+    else
+      self._dispatch event
+
+
 
   _receiveComment: (event) ->
     self = @
@@ -248,7 +253,8 @@ class FBMessenger extends Adapter
 
   reply: (envelope, commentId, reply) ->
     self = @
-    url = self.apiURL + "/#{commentId}/private_replies?access_token="+self.commentsToken
+    url = self.apiURL + "/#{commentId}/private_replies?access_token="+
+    self.commentsToken
     @robot.http(url)
     .query({message: reply})
     .post() (error, response, body) ->
@@ -566,3 +572,4 @@ class FBMessenger extends Adapter
 
 exports.use = (robot) ->
   new FBMessenger robot
+
