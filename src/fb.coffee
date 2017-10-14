@@ -146,6 +146,7 @@ class FBMessenger extends Adapter
     self = @
     fbData = JSON.stringify data
 
+    self.robot.logger.info "Sending: #{fbData}"
     request = new Promise((resolve, reject) ->
       self._getAndSetPage pageId, (page) ->
         unless self.hooksUrl
@@ -173,9 +174,9 @@ class FBMessenger extends Adapter
               self.robot.logger.info response.body
             else
               try
-                errMsg = JSON.parse body
                 self.robot.logger.error "Facebook webhook responded with \
-                an error #{errMsg.error.message}"
+                an error #{body}"
+                errMsg = JSON.parse body
                 self._sendToSlack "Facebook webhook responded with an \
                 error\n #{errMsg.error.message}"
               catch e
