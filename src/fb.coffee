@@ -65,6 +65,7 @@ class FBMessenger extends Adapter
     @defaultUserPicture = process.env['USER_DEFAULT_PICTURE'] or ""
 
     @msg_maxlength = 640
+    @special_command = process.env['SPECIAL_COMMAND'] or "/"
 
     Analytics.init @botId, @app_id, @page_id
 
@@ -194,7 +195,7 @@ class FBMessenger extends Adapter
     self = @
 
     # Validate if message is from bot
-    if event.message?.app_id?
+    if event.message?.app_id? == self.app_id
       self.robot.logger.debug "Skipping incoming request, is an echo from bot"
       +" message."
       return
@@ -274,7 +275,7 @@ class FBMessenger extends Adapter
         #@receive msg
       else
         if envelope.user.admin
-          if text.startsWith('/')
+          if text.startsWith('/') or text.startsWith(@special_command) 
             @receive msg
           else
             msg = new TextMessage envelope.user, '/botOff', event.message.mid
