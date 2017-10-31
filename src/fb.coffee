@@ -71,7 +71,7 @@ class FBMessenger extends Adapter
 
   send: (envelope, templates...) ->
     self = @
-    Promise.each(templates, ({slug, template}) ->
+    Promise.map(templates, ({slug, template}) ->
       if template.type is 'text'
         delete template.type
       self._sendRich(envelope.user.id, envelope.room, template, slug)
@@ -195,12 +195,13 @@ class FBMessenger extends Adapter
     self = @
 
     # Validate if message is from bot
-    if event.message?.app_id? == self.app_id
-      self.robot.logger.debug "Skipping incoming request, is an echo from bot"
-      +" message."
-      return
+    if event.message?.app_id?
+      if event.message.app_id == parseInt(self.app_id)
+        self.robot.logger.debug "Skipping incoming request, is an echo from bot"
+        +" message."
+        return
     # Make payload used to send typing event
-    typing =
+    typing  =
       recipient:
         id: event.sender.id
       sender_action: 'typing_on'
