@@ -75,7 +75,7 @@ class FBMessenger extends Adapter
       if template.type is 'text'
         delete template.type
       self._sendRich(envelope.user.id, envelope.room, template, slug)
-    )
+    , { concurrency: 1 })
 
 
   _sendText: (user, pageId, msg, slug) ->
