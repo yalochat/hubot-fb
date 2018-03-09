@@ -153,7 +153,7 @@ class FBMessenger extends Adapter
           url = self.messageEndpoint
           query = access_token: self.token
         else if page?
-          url = "#{self.hooksUrl}/bots/#{page.id}?#{params}"
+          url = "#{self.hooksUrl}/bots/#{page.id}#{params}"
           query = {}
         else
           return reject(new Error "Page with id: #{pageId} doesn't exists'")
