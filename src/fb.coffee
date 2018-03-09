@@ -508,7 +508,7 @@ class FBMessenger extends Adapter
     @robot.router.post [@routeURL], (req, res) ->
       self.robot.logger.debug "Received payload: %j", req.body
       botmetrics.trackIncoming(req.body)
-      self.callbackUrl = req.query['callback_url'] ? req.query['callback_url'] : ''
+      self.callbackUrl = if req.query['callback_url'] then req.query['callback_url'] else ''
       [entry] = req.body.entry
       if entry.changes?.length > 0
         self._receiveComment entry.changes[0]
