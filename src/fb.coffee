@@ -148,7 +148,7 @@ class FBMessenger extends Adapter
 
     request = new Promise((resolve, reject) ->
       self._getAndSetPage pageId, (page) ->
-      params = "?callback-url=#{self.callbackUrl}"
+      params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
         unless self.hooksUrl
           url = self.messageEndpoint
           query = access_token: self.token
@@ -508,7 +508,7 @@ class FBMessenger extends Adapter
     @robot.router.post [@routeURL], (req, res) ->
       self.robot.logger.debug "Received payload: %j", req.body
       botmetrics.trackIncoming(req.body)
-      self.callbackUrl = if req.query['callback_url'] then req.query['callback_url'] else ''
+      self.callbackUrl = req.query['callback-url']
       [entry] = req.body.entry
       if entry.changes?.length > 0
         self._receiveComment entry.changes[0]
