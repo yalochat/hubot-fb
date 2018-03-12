@@ -148,7 +148,7 @@ class FBMessenger extends Adapter
 
     request = new Promise((resolve, reject) ->
       self._getAndSetPage pageId, (page) ->
-      params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
+          params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
         unless self.hooksUrl
           url = self.messageEndpoint
           query = access_token: self.token
