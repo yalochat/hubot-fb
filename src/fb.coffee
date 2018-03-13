@@ -158,7 +158,8 @@ class FBMessenger extends Adapter
         else
           return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
-        self.robot.logger.info "Sending request to hooks-proxy url #{url}"
+        url = self.callbackUrl or url
+        self.robot.logger.info "Sending request to url #{url}"
         self.robot
           .http(url)
           .header('Content-Type', 'application/json')
