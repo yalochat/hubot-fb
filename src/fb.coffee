@@ -148,17 +148,16 @@ class FBMessenger extends Adapter
 
     request = new Promise((resolve, reject) ->
       self._getAndSetPage pageId, (page) ->
-          params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
         unless self.hooksUrl
-          url = self.messageEndpoint
+          url = self.callbackUrl or self.messageEndpoint
           query = access_token: self.token
         else if page?
+          params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
           url = "#{self.hooksUrl}/bots/#{page.id}#{params}"
           query = {}
         else
           return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
-        url = self.callbackUrl or url
         self.robot.logger.info "Sending request to url #{url}"
         self.robot
           .http(url)
