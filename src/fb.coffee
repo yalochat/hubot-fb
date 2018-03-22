@@ -149,14 +149,16 @@ class FBMessenger extends Adapter
     request = new Promise((resolve, reject) ->
       self._getAndSetPage pageId, (page) ->
         unless self.hooksUrl
-          url = self.messageEndpoint
+          url = self.callbackUrl or self.messageEndpoint
           query = access_token: self.token
         else if page?
-          url = "#{self.hooksUrl}/bots/#{page.id}"
+          params = if self.callbackUrl then "?callback-url=#{self.callbackUrl}" else ''
+          url = "#{self.hooksUrl}/bots/#{page.id}#{params}"
           query = {}
         else
           return reject(new Error "Page with id: #{pageId} doesn't exists'")
 
+        self.robot.logger.info "Sending request to url #{url}"
         self.robot
           .http(url)
           .header('Content-Type', 'application/json')
@@ -507,6 +509,7 @@ class FBMessenger extends Adapter
     @robot.router.post [@routeURL], (req, res) ->
       self.robot.logger.debug "Received payload: %j", req.body
       botmetrics.trackIncoming(req.body)
+      self.callbackUrl = req.query['callback-url']
       [entry] = req.body.entry
       if entry.changes?.length > 0
         self._receiveComment entry.changes[0]
