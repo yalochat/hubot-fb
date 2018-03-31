@@ -276,7 +276,7 @@ class FBMessenger extends Adapter
         #@receive msg
       else
         if envelope.user.admin
-          if text.startsWith('/') or text.startsWith(@special_command) 
+          if text.startsWith('/') or text.startsWith(@special_command)
             @receive msg
           else
             msg = new TextMessage envelope.user, '/botOff', event.message.mid
@@ -523,7 +523,6 @@ class FBMessenger extends Adapter
         if response.statusCode != 200
           self.robot.logger.error "Response code -> #{response.statusCode} \
           Response message -> #{body}"
-          process.exit 0
         self.robot.logger.info "subscribed app to page: \
         #{body} #{response.statusCode}"
 
